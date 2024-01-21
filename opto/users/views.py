@@ -15,7 +15,6 @@ User = get_user_model()
 
 @api_view(['POST'])
 def login(request):
-    test = 4
     email = request.data.get('email', '')
     password = request.data.get('password', '')
 
