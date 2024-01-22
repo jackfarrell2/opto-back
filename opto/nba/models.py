@@ -27,14 +27,6 @@ class Team(models.Model):
         return f"{self.abbrev}"
 
 
-class Position(models.Model):
-    position = models.CharField(max_length=5)
-    slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return f"{self.position}"
-
-
 class Player(models.Model):
     name = models.CharField(max_length=50)
     projection = models.DecimalField(max_digits=5,
@@ -43,9 +35,14 @@ class Player(models.Model):
     team = models.ForeignKey(Team,
                              on_delete=models.CASCADE,
                              related_name='teams_players')
-    position = models.ForeignKey(Position,
-                                 on_delete=models.CASCADE,
-                                 related_name="positions_players")
+    F = models.BooleanField(default=False)
+    C = models.BooleanField(default=False)
+    G = models.BooleanField(default=False)
+    SG = models.BooleanField(default=False)
+    PG = models.BooleanField(default=False)
+    SF = models.BooleanField(default=False)
+    PF = models.BooleanField(default=False)
+    UTIL = models.BooleanField(default=False)
     dk_id = models.IntegerField()
     salary = models.IntegerField()
     slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
@@ -66,4 +63,3 @@ class Game(models.Model):
 
     def __str__(self):
         return f"{self.away_team} @ {self.home_team}"
-
