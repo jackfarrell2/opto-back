@@ -22,6 +22,7 @@ class Slate(models.Model):
 class Team(models.Model):
     abbrev = models.CharField(max_length=5)
     slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
+    opponent = models.CharField(max_length=5, null=True)
 
     def __str__(self):
         return f"{self.abbrev}"
@@ -35,6 +36,8 @@ class Player(models.Model):
     team = models.ForeignKey(Team,
                              on_delete=models.CASCADE,
                              related_name='teams_players')
+    opponent = models.CharField(max_length=5, null=True)
+    position = models.CharField(max_length=5)
     F = models.BooleanField(default=False)
     C = models.BooleanField(default=False)
     G = models.BooleanField(default=False)
