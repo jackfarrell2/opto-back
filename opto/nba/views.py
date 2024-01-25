@@ -133,7 +133,7 @@ def get_slate(request, slate_id):
         player_info = []
         for player in players:
             player_info.append({'id': player.id, 'name': player.name,
-                                'team': player.team.abbrev, 'salary': player.salary, 'projection': player.projection, 'dk_id': player.dk_id, 'position': player.position, 'opponent': player.opponent})
+                                'team': player.team.abbrev, 'salary': player.salary, 'projection': player.projection, 'dk_id': player.dk_id, 'position': player.position, 'opponent': player.opponent, 'xvalue': '', 'exposure': '', 'ownership': ''})
         slate_info = {'id': slate.id, 'date': slate.date, }
         serialized_data = {
             'slate': slate_info,
