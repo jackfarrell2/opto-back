@@ -1,13 +1,16 @@
+import json
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Slate, Team, Player, Game
+from .models import Slate, Team, Player, Game, UserPlayer
 from rest_framework import status
 from opto.utils import format_slate
 from csv import DictReader
 from codecs import iterdecode
 from backports.zoneinfo import ZoneInfo
 from datetime import datetime
+import re
 from .serializers import SlateSerializer, GameSerializer, TeamSerializer, PlayerSerializer
+from users.models import CustomUser
 
 
 @api_view(['GET'])
@@ -133,7 +136,7 @@ def get_slate(request, slate_id):
         player_info = []
         for player in players:
             player_info.append({'id': player.id, 'name': player.name,
-                                'team': player.team.abbrev, 'salary': player.salary, 'projection': player.projection, 'dk_id': player.dk_id, 'position': player.position, 'opponent': player.opponent, 'xvalue': '', 'exposure': '', 'ownership': ''})
+                                'team': player.team.abbrev, 'salary': player.salary, 'projection': player.projection, 'dk_id': player.dk_id, 'position': player.position, 'opponent': player.opponent, 'xvalue': '', 'exposure': '0', 'ownership': '0'})
         slate_info = {'id': slate.id, 'date': slate.date, }
         serialized_data = {
             'slate': slate_info,
@@ -142,6 +145,50 @@ def get_slate(request, slate_id):
             'players': player_info
         }
         return Response(serialized_data)
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}"
+        return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def optomize(request):
+    try:
+        # Parse Data
+        data = request.body.decode('utf-8')
+        player_info = json.loads(data)
+        parsed_data = {}
+        for key, value in player_info.items():
+            match = re.match(r"players\[(\d+)\]\[([a-zA-Z]+)\]", key)
+            if match:
+                player_id = int(match.group(1))
+                attribute = match.group(2)
+                if player_id not in parsed_data:
+                    parsed_data[player_id] = {}
+                parsed_data[player_id][attribute] = value
+        # Update players
+        # first_key, first_value = next(iter(parsed_data.items()))
+        # first_player = Player.objects.get(id=first_key)
+        # slate = first_player.slate
+        # slate_players = Player.objects.filter(slate=slate)
+        for key, value in parsed_data.items():
+            meta_player = Player.objects.get(id=key)
+            slate = meta_player.slate
+            user = CustomUser.objects.get(id=2)
+            lock = bool(value['lock'].lower())
+            remove = bool(value['remove'].lower())
+            exposure = float(value['exposure'])
+            ownership = float(value['ownership'])
+            projection = (value['projection'])
+            player, created = UserPlayer.objects.update_or_create(
+                meta_player=meta_player, slate=slate, user=user, defaults={
+                    'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
+            )
+            # player.save()
+
+        return Response({"status": "success"})
+    except json.JSONDecodeError as e:
+        error_message = f"Invalid JSON data: {str(e)}"
+        return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

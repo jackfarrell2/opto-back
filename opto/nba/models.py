@@ -1,5 +1,6 @@
 from django.db import models
 from pytz import timezone
+from users.models import CustomUser
 
 
 class Slate(models.Model):
@@ -66,3 +67,14 @@ class Game(models.Model):
 
     def __str__(self):
         return f"{self.away_team} @ {self.home_team}"
+
+
+class UserPlayer(models.Model):
+    meta_player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    lock = models.BooleanField(default=False)
+    remove = models.BooleanField(default=False)
+    ownership = models.DecimalField(max_digits=4, decimal_places=2)
+    exposure = models.DecimalField(max_digits=4, decimal_places=2)
+    projection = models.DecimalField(max_digits=4, decimal_places=2)
