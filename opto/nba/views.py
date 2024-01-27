@@ -11,6 +11,7 @@ from datetime import datetime
 import re
 from .serializers import SlateSerializer, GameSerializer, TeamSerializer, PlayerSerializer
 from users.models import CustomUser
+from nba.nba import optimize_lineups
 
 
 @api_view(['GET'])
@@ -151,11 +152,13 @@ def get_slate(request, slate_id):
 
 
 @api_view(['POST'])
-def optomize(request):
+def optimize(request):
     try:
         # Parse Data
-        data = request.body.decode('utf-8')
-        player_info = json.loads(data)
+        data = json.loads(request.body)
+        slate = Slate.objects.get(id=data['slate-id'])
+        user = CustomUser.objects.get(id=data['user-id'])
+        player_info = data['players']
         parsed_data = {}
         for key, value in player_info.items():
             match = re.match(r"players\[(\d+)\]\[([a-zA-Z]+)\]", key)
@@ -166,14 +169,8 @@ def optomize(request):
                     parsed_data[player_id] = {}
                 parsed_data[player_id][attribute] = value
         # Update players
-        # first_key, first_value = next(iter(parsed_data.items()))
-        # first_player = Player.objects.get(id=first_key)
-        # slate = first_player.slate
-        # slate_players = Player.objects.filter(slate=slate)
         for key, value in parsed_data.items():
             meta_player = Player.objects.get(id=key)
-            slate = meta_player.slate
-            user = CustomUser.objects.get(id=2)
             lock = bool(value['lock'].lower())
             remove = bool(value['remove'].lower())
             exposure = float(value['exposure'])
@@ -183,7 +180,10 @@ def optomize(request):
                 meta_player=meta_player, slate=slate, user=user, defaults={
                     'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
             )
-            # player.save()
+        # Gather optomization data
+        this_optimization_players = UserPlayer.objects.filter(
+            slate=slate, user=user, remove=False)
+        optimized_lineups = optimize_lineups(this_optimization_players)
 
         return Response({"status": "success"})
     except json.JSONDecodeError as e:
