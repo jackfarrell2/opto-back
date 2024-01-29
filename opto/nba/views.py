@@ -9,9 +9,11 @@ from codecs import iterdecode
 from backports.zoneinfo import ZoneInfo
 from datetime import datetime
 import re
-from .serializers import SlateSerializer, GameSerializer, TeamSerializer, PlayerSerializer
+from django.core.serializers.json import DjangoJSONEncoder
+from decimal import Decimal
 from users.models import CustomUser
-from nba.nba import optimize_lineups
+from django.http import JsonResponse
+from nba.nba import optimize_lineup
 
 
 @api_view(['GET'])
@@ -183,12 +185,38 @@ def optimize(request):
         # Gather optomization data
         this_optimization_players = UserPlayer.objects.filter(
             slate=slate, user=user, remove=False)
-        optimized_lineups = optimize_lineups(this_optimization_players)
-
-        return Response({"status": "success"})
+        optimized_lineup = optimize_lineup(this_optimization_players)
+        # Get necessary lineup data
+        total_salary = 0
+        total_projection = 0
+        lineup = {}
+        for position, player_name in optimized_lineup.items():
+            meta_player_in_lineup = Player.objects.get(name=player_name, slate=slate)
+            user_player_in_lineup = UserPlayer.objects.get(meta_player=meta_player_in_lineup, slate=slate, user=user)
+            player_in_lineup_info = {}
+            player_in_lineup_info['name'] = player_name
+            player_in_lineup_info['salary'] = meta_player_in_lineup.salary
+            total_salary += meta_player_in_lineup.salary
+            player_in_lineup_info['projection'] = user_player_in_lineup.projection
+            total_projection += user_player_in_lineup.projection
+            player_in_lineup_info['ownership'] = user_player_in_lineup.ownership
+            player_in_lineup_info['team'] = meta_player_in_lineup.team.abbrev
+            player_in_lineup_info['opponent'] = meta_player_in_lineup.opponent
+            lineup[position] = player_in_lineup_info
+        # Calc total salary
+        lineup['total_salary'] = total_salary
+        lineup['total_projection'] = total_projection
+        return JsonResponse({'lineup': lineup}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
         error_message = f"Invalid JSON data: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class DecimalEncoder(DjangoJSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)

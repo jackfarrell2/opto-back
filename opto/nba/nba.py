@@ -1,6 +1,6 @@
 from pulp import LpMaximize, LpProblem, LpVariable, lpSum
 
-def optimize_lineups(player_data, max_total_salary=50000):
+def optimize_lineup(player_data, max_total_salary=50000):
     num_players = 8
     position_slots = ['F', 'C', 'G', 'SG', 'PG', 'SF', 'PF', 'UTIL']
     meta_players = {}
@@ -73,25 +73,5 @@ def optimize_lineups(player_data, max_total_salary=50000):
     model.solve()
 
     # Get the selected players
-    model_selected_players = []
-    for key, value in selected_players.items():
-        if value.value() == 1:
-            model_selected_players.append(key)
-    selected_player_info = {}
-    for player in model_selected_players:
-        split = player.split('_')
-        selected_player_info[split[1]] = split[0]
-
-    for k, v in selected_player_info.items():
-        print(f"{k}: {v}")
-
-
-    # # Get the projections and salaries of the selected players
-    # selected_players_projections = [player['projection'] for player in players if player['name'] in selected_players_names]
-    # selected_players_salaries = [player['salary'] for player in players if player['name'] in selected_players_names]
-
-    # print("Selected players:")
-    # for name, projection, salary in zip(selected_players_names, selected_players_projections, selected_players_salaries):
-    #     print(f"{name} with projection: {projection} and salary: {salary}")
-
+    selected_player_info = {key.split('_')[1]: key.split('_')[0] for key, value in selected_players.items() if value.value() == 1}
     return selected_player_info
