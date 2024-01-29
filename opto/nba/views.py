@@ -203,7 +203,6 @@ def optimize(request):
             player_in_lineup_info['team'] = meta_player_in_lineup.team.abbrev
             player_in_lineup_info['opponent'] = meta_player_in_lineup.opponent
             lineup[position] = player_in_lineup_info
-        # Calc total salary
         lineup['total_salary'] = total_salary
         lineup['total_projection'] = total_projection
         return JsonResponse({'lineup': lineup}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
