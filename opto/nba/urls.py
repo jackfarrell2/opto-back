@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('slates/', views.get_slates, name='slates'),
     path('add-slate/', views.add_slate, name='add-slate'),
-    path('get-slate/<int:slate_id>', views.get_slate, name='get-slate'),
-    path('optimize/', views.optimize, name='optomize'),
+    path('api/unauthenticated-slate-info/<int:slate_id>', views.get_unauthenticated_slate_info, name='unauthenticated-slate-info'),
+    path('api/authenticated-optimize/', views.authenticated_optimize, name='authenticated-optomize'),
+    path('api/authenticated-slate-info/<int:slate_id>', views.get_authenticated_slate_info, name='authenticated-slate-info'),
 ]
