@@ -150,6 +150,7 @@ def authenticated_optimize(request):
         player_data = optimization_info['players']
         opto_settings = optimization_info['opto-settings']
         opto_settings['slate'] = optimization_info['slate']
+        opto_settings['locks'] = optimization_info['locks']
         lineups = optimize(player_data, opto_settings)
         return JsonResponse({'lineups': lineups}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
@@ -166,6 +167,7 @@ def unauthenticated_optimize(request):
         player_data = optimization_info['players']
         opto_settings = optimization_info['opto-settings']
         opto_settings['slate'] = optimization_info['slate']
+        opto_settings['locks'] = optimization_info['locks']
         lineups = optimize(player_data, opto_settings)
         return JsonResponse({'lineups': lineups}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
