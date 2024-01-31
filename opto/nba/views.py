@@ -1,19 +1,17 @@
 import json
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Slate, Team, Player, Game, UserPlayer
+from .models import Slate, Team, Player, Game
 from rest_framework import status
 from opto.utils import format_slate
 from csv import DictReader
 from codecs import iterdecode
 from backports.zoneinfo import ZoneInfo
 from datetime import datetime
-import re
 from django.core.serializers.json import DjangoJSONEncoder
 from decimal import Decimal
-from users.models import CustomUser
 from django.http import JsonResponse
-from nba.nba import optimize_lineups, get_slate_info
+from nba.nba import prepare_optimize, get_slate_info, optimize
 from rest_framework.decorators import authentication_classes
 from rest_framework.authentication import TokenAuthentication
 
@@ -148,7 +146,27 @@ def get_authenticated_slate_info(request, slate_id):
 @authentication_classes([TokenAuthentication])
 def authenticated_optimize(request):
     try:
-        lineups = optimize_lineups(request, request.user, 1)
+        optimization_info = prepare_optimize(request, request.user)
+        player_data = optimization_info['players']
+        opto_settings = optimization_info['opto-settings']
+        opto_settings['slate'] = optimization_info['slate']
+        lineups = optimize(player_data, opto_settings)
+        return JsonResponse({'lineups': lineups}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
+    except json.JSONDecodeError as e:
+        error_message = f"Invalid JSON data: {str(e)}"
+        return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}"
+        return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['POST'])
+def unauthenticated_optimize(request):
+    try:
+        optimization_info = prepare_optimize(request)
+        player_data = optimization_info['players']
+        opto_settings = optimization_info['opto-settings']
+        opto_settings['slate'] = optimization_info['slate']
+        lineups = optimize(player_data, opto_settings)
         return JsonResponse({'lineups': lineups}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
         error_message = f"Invalid JSON data: {str(e)}"
