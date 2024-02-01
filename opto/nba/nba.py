@@ -1,13 +1,28 @@
 from pulp import LpMaximize, LpProblem, LpVariable, lpSum
-from .models import Slate, Game, Team, Player, UserPlayer, CustomUser
-import json
+from .models import Slate, Game, Team, Player, UserPlayer, UserOptoSettings
 import re
+import json
         
+
+def store_opto_settings(user, slate, settings):
+    UserOptoSettings.objects.update_or_create(
+        user=user, defaults={
+            'uniques': settings['uniques'],
+            'max_salary': settings['maxSalary'],
+            'min_salary': settings['minSalary'],
+            'max_players_per_team': settings['maxTeamPlayers']
+        }
+    )
+
+
 def prepare_optimize(request, user=None):
     # Parse Data
     data = json.loads(request.body)
     slate = Slate.objects.get(id=data['slate-id'])
     player_info = data['players']
+    # Store opto info
+    if user is not None:
+        store_opto_settings(user, slate, data['opto-settings'] )
     parsed_data = {}
     for key, value in player_info.items():
         match = re.match(r"players\[(\d+)\]\[([a-zA-Z]+)\]", key)
@@ -27,6 +42,7 @@ def prepare_optimize(request, user=None):
         exposure = float(value['exposure'])
         ownership = float(value['ownership'])
         projection = float(value['projection'])
+        # Store user info
         if user is not None:
             player, created = UserPlayer.objects.update_or_create(
                 meta_player=meta_player, slate=slate, user=user, defaults={
@@ -176,6 +192,7 @@ def get_slate_info(request, slate_id, user=None):
         for team in teams:
             team_info.append({'id': team.id, 'abbrev': team.abbrev})
         player_info = []
+        user_locks = {'count': 0, 'salary': 0}
         for player in players:
             if user is not None:
                 try:
@@ -185,6 +202,9 @@ def get_slate_info(request, slate_id, user=None):
                     exposure = user_player.exposure
                     remove = user_player.remove
                     lock = user_player.lock
+                    if lock:
+                        user_locks['count'] += 1
+                        user_locks['salary'] += player.salary
                 except:
                     projection = player.projection
                     ownership = 0
@@ -204,9 +224,10 @@ def get_slate_info(request, slate_id, user=None):
             'slate': slate_info,
             'games': game_info,
             'teams': team_info,
-            'players': player_info
+            'players': player_info,
+            'user-locks': user_locks,
         }
         return serialized_data
     except:
         return None
-    
+

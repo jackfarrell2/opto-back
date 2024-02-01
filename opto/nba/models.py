@@ -70,6 +70,10 @@ class Game(models.Model):
 
 
 class UserPlayer(models.Model):
+
+    class Meta:
+        verbose_name = 'User Player'
+
     meta_player = models.ForeignKey(Player, on_delete=models.CASCADE)
     slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
@@ -78,3 +82,21 @@ class UserPlayer(models.Model):
     ownership = models.DecimalField(max_digits=4, decimal_places=2)
     exposure = models.DecimalField(max_digits=4, decimal_places=2)
     projection = models.DecimalField(max_digits=4, decimal_places=2)
+    
+    def __str__(self):
+        return f"{self.meta_player} - {self.user} - {self.slate}"
+
+
+class UserOptoSettings(models.Model):
+
+    class Meta:
+        verbose_name = 'User Opto Setting'
+    
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    max_salary = models.IntegerField(default=50000)
+    min_salary = models.IntegerField(default=49000)
+    max_players_per_team = models.IntegerField(default=5)
+    uniques = models.IntegerField(default=3)
+
+    def __str__(self):
+        return f"{self.user} Settings"

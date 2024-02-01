@@ -1,7 +1,7 @@
 import json
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Slate, Team, Player, Game
+from .models import Slate, Team, Player, Game, UserOptoSettings
 from rest_framework import status
 from opto.utils import format_slate
 from csv import DictReader
@@ -140,6 +140,28 @@ def get_authenticated_slate_info(request, slate_id):
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+def get_user_opto_settings(request):
+    try:
+        user_opto_settings_object = UserOptoSettings.objects.get(user=request.user)
+        user_opto_settings = {'max-salary': user_opto_settings_object.max_salary, 'min-salary': user_opto_settings_object.min_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team, 'uniques': user_opto_settings_object.uniques}
+        return Response(user_opto_settings)
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}"
+        return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT'])
+@authentication_classes([TokenAuthentication])
+def update_uniques(request):
+    try:
+        data = request.body
+    except Exception as e:
+        error_message = f"Invalid JSON data: {str(e)}"
+        return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
