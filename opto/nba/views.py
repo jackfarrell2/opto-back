@@ -146,7 +146,11 @@ def get_authenticated_slate_info(request, slate_id):
 @authentication_classes([TokenAuthentication])
 def get_user_opto_settings(request):
     try:
-        user_opto_settings_object = UserOptoSettings.objects.get(user=request.user)
+        try:
+            user_opto_settings_object = UserOptoSettings.objects.get(user=request.user)
+        except:
+            user_opto_settings_object = UserOptoSettings.objects.create(user=request.user)
+            user_opto_settings_object.save()
         user_opto_settings = {'max-salary': user_opto_settings_object.max_salary, 'min-salary': user_opto_settings_object.min_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team, 'uniques': user_opto_settings_object.uniques}
         return Response(user_opto_settings)
     except Exception as e:
