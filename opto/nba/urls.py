@@ -8,6 +8,6 @@ urlpatterns = [
     path('api/authenticated-optimize/', views.authenticated_optimize, name='authenticated-optomize'),
     path('api/unauthenticated-optimize/', views.unauthenticated_optimize, name='unauthenticated-optomize'),
     path('api/authenticated-slate-info/<int:slate_id>', views.get_authenticated_slate_info, name='authenticated-slate-info'),
-    path('api/update-uniques/', views.update_uniques, name='update-uniques'),
-    path('api/user-opto-settings/', views.get_user_opto_settings, name='user-opto-settings'),
+    path('api/user-opto-settings/', views.user_opto_settings, name='user-opto-settings'),
+    path('api/player-settings/', views.player_settings, name='player-settings')
 ]
