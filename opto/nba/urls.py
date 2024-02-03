@@ -9,5 +9,6 @@ urlpatterns = [
     path('api/unauthenticated-optimize/', views.unauthenticated_optimize, name='unauthenticated-optomize'),
     path('api/authenticated-slate-info/<int:slate_id>', views.get_authenticated_slate_info, name='authenticated-slate-info'),
     path('api/user-opto-settings/', views.user_opto_settings, name='user-opto-settings'),
-    path('api/player-settings/', views.player_settings, name='player-settings')
+    path('api/player-settings/', views.player_settings, name='player-settings'),
+    path('api/upload-projections/', views.upload_projections, name='upload-projections'),
 ]

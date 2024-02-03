@@ -31,6 +31,24 @@ def get_slates(request):
 
 
 @api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+def upload_projections(request):
+    try:
+        # Get uploaded csv file
+        slate_file = request.FILES['file']
+        csv = DictReader(iterdecode(slate_file, 'utf-8'))
+        # Gather player info
+        # for row in csv:
+        #     player = Player.objects.get(dk_id=row['ID'], slate=slate)
+        #     player.projection = row['AvgPointsPerGame']
+        #     player.save()
+        return Response({"message": "Projections uploaded successfully"}, status=status.HTTP_200_OK)
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}"
+        return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
 def add_slate(request):
     # Get uploaded csv file
     slate_file = request.FILES['file']
