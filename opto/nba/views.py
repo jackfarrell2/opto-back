@@ -35,8 +35,9 @@ def get_slates(request):
 def upload_projections(request):
     try:
         # Get uploaded csv file
-        slate_file = request.FILES['file']
+        slate_file = request.FILES.get('file')
         csv = DictReader(iterdecode(slate_file, 'utf-8'))
+        
         # Gather player info
         # for row in csv:
         #     player = Player.objects.get(dk_id=row['ID'], slate=slate)
