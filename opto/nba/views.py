@@ -148,7 +148,8 @@ def get_unauthenticated_slate_info(request, slate_id):
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
+
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 def get_authenticated_slate_info(request, slate_id):
@@ -158,7 +159,7 @@ def get_authenticated_slate_info(request, slate_id):
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
 
 @api_view(['PUT'])
 @authentication_classes([TokenAuthentication])
@@ -201,11 +202,14 @@ def user_opto_settings(request):
         if request.method == 'GET':
             try:
                 try:
-                    user_opto_settings_object = UserOptoSettings.objects.get(user=request.user)
+                    user_opto_settings_object = UserOptoSettings.objects.get(
+                        user=request.user)
                 except:
-                    user_opto_settings_object = UserOptoSettings.objects.create(user=request.user)
+                    user_opto_settings_object = UserOptoSettings.objects.create(
+                        user=request.user)
                     user_opto_settings_object.save()
-                user_opto_settings = {'uniques': user_opto_settings_object.uniques, 'min-salary': user_opto_settings_object.min_salary, 'max-salary': user_opto_settings_object.max_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team}
+                user_opto_settings = {'uniques': user_opto_settings_object.uniques, 'min-salary': user_opto_settings_object.min_salary,
+                                      'max-salary': user_opto_settings_object.max_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team}
                 return Response(user_opto_settings)
             except Exception as e:
                 error_message = f"An error occurred: {str(e)}"
@@ -214,7 +218,8 @@ def user_opto_settings(request):
             try:
                 data = request.body
                 data = json.loads(data)
-                user_opto_settings_object = UserOptoSettings.objects.get(user=request.user)
+                user_opto_settings_object = UserOptoSettings.objects.get(
+                    user=request.user)
                 user_opto_settings_object.uniques = data['uniques']
                 user_opto_settings_object.min_salary = data['min-salary']
                 user_opto_settings_object.max_salary = data['max-salary']
@@ -246,7 +251,8 @@ def authenticated_optimize(request):
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
+
 @api_view(['POST'])
 def unauthenticated_optimize(request):
     try:

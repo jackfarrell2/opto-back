@@ -2,7 +2,7 @@ from pulp import LpMaximize, LpProblem, LpVariable, lpSum
 from .models import Slate, Game, Team, Player, UserPlayer, UserOptoSettings
 import re
 import json
-        
+
 
 def store_opto_settings(user, slate, settings):
     UserOptoSettings.objects.update_or_create(
@@ -22,7 +22,7 @@ def prepare_optimize(request, user=None):
     player_info = data['players']
     # Store opto info
     if user is not None:
-        store_opto_settings(user, slate, data['opto-settings'] )
+        store_opto_settings(user, slate, data['opto-settings'])
     parsed_data = {}
     for key, value in player_info.items():
         match = re.match(r"players\[(\d+)\]\[([a-zA-Z]+)\]", key)
@@ -37,7 +37,8 @@ def prepare_optimize(request, user=None):
     for key, value in parsed_data.items():
         meta_player = Player.objects.get(id=key)
         lock = bool(value['lock'].lower())
-        if lock: locks.append(str(meta_player.id))
+        if lock:
+            locks.append(str(meta_player.id))
         remove = bool(value['remove'].lower())
         exposure = float(value['exposure'])
         ownership = float(value['ownership'])
@@ -49,7 +50,8 @@ def prepare_optimize(request, user=None):
                     'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
             )
         if not remove:
-            this_optimization_players[str(meta_player.id)] = {'name': meta_player.name, 'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
+            this_optimization_players[str(meta_player.id)] = {
+                'name': meta_player.name, 'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
     return {'slate': slate, 'players': this_optimization_players, 'opto-settings': data['opto-settings'], 'locks': locks}
 
 
@@ -64,7 +66,7 @@ def optimize(players, settings):
     max_team_salary = int(settings['maxSalary'])
     locks = settings['locks']
     # To be updated later
-    num_lineups = 1 
+    num_lineups = 1
     # Global Settings
     num_players = 8
     position_slots = ['F', 'C', 'G', 'SG', 'PG', 'SF', 'PF', 'UTIL']
@@ -86,7 +88,7 @@ def optimize(players, settings):
             'positions': eligible_positions
         }
         meta_players[str(meta_player.id)] = player_info
-    
+
     # Create a linear programming problem
     model = LpProblem(name="Optimize_Lineups", sense=LpMaximize)
 
@@ -112,43 +114,52 @@ def optimize(players, settings):
     for position, position_list in position_lists.items():
         for player in position_list:
             position_specific_name = f"{player}_{position}"
-            selected_players[position_specific_name] = LpVariable(name=position_specific_name, cat='Binary')
+            selected_players[position_specific_name] = LpVariable(
+                name=position_specific_name, cat='Binary')
 
     # Objective function: maximize the total projection
     objective_terms = []
     for player_id, player_item in selected_players.items():
         player_id = player_id.split('_')[0]
-        objective_terms.append(meta_players[player_id]['projection'] * player_item)
+        objective_terms.append(
+            meta_players[player_id]['projection'] * player_item)
     model += lpSum(objective_terms)
 
     # Constraint: select exactly one player per position
     for position in position_lists:
-        model += lpSum(selected_players[f"{player_id}_{position}"] for player_id in position_lists[position]) == 1
+        model += lpSum(selected_players[f"{player_id}_{position}"]
+                       for player_id in position_lists[position]) == 1
 
     # Constraint: lock players
     for lock_id, position in locked_players.items():
-        model += lpSum(selected_players[f"{lock_id}_{position}"] for position in position) == 1
+        model += lpSum(selected_players[f"{lock_id}_{position}"]
+                       for position in position) == 1
 
     # Constraint: limit the total salary to max_total_salary
-    total_salary_constraint_max = lpSum(selected_players[player_id] * meta_players[player_id.split('_')[0]]['salary'] for player_id in selected_players) <= max_team_salary
+    total_salary_constraint_max = lpSum(selected_players[player_id] * meta_players[player_id.split(
+        '_')[0]]['salary'] for player_id in selected_players) <= max_team_salary
     model += total_salary_constraint_max
 
     # Constraint: limit the total salary to min_team_salary
-    total_salary_constraint_min = lpSum(selected_players[player_id] * meta_players[player_id.split('_')[0]]['salary'] for player_id in selected_players) >= min_team_salary
+    total_salary_constraint_min = lpSum(selected_players[player_id] * meta_players[player_id.split(
+        '_')[0]]['salary'] for player_id in selected_players) >= min_team_salary
     model += total_salary_constraint_min
 
     # Constraint: select exactly num_8 players
-    model += lpSum(selected_players[player_id] for player_id in selected_players) == num_players
+    model += lpSum(selected_players[player_id]
+                   for player_id in selected_players) == num_players
 
     # Constraint: Select max one meta player:
     for player_id, player_item in meta_players.items():
-        model += lpSum(selected_players[f"{player_id}_{position}"] for position in player_item['positions']) <= 1
+        model += lpSum(selected_players[f"{player_id}_{position}"]
+                       for position in player_item['positions']) <= 1
 
-    for i in range(num_lineups):    
+    for i in range(num_lineups):
         # Solve the problem
         model.solve()
         # Get the selected players
-        selected_players = {key.split('_')[1]: key.split('_')[0] for key, value in selected_players.items() if value.value() == 1}
+        selected_players = {key.split('_')[1]: key.split(
+            '_')[0] for key, value in selected_players.items() if value.value() == 1}
         lineup_info = get_lineup_info(selected_players, players)
         lineups.append(lineup_info)
 
@@ -157,25 +168,25 @@ def optimize(players, settings):
 
 def get_lineup_info(selected_players, player_data):
     # Get necessary lineup data
-        total_salary = 0
-        total_projection = 0
-        lineup = {}
-        for position, player_id in selected_players.items():
-            meta_player_in_lineup = Player.objects.get(id=player_id)
-            user_player_info = player_data[player_id]
-            player_in_lineup_info = {}
-            player_in_lineup_info['name'] = meta_player_in_lineup.name
-            player_in_lineup_info['salary'] = meta_player_in_lineup.salary
-            total_salary += meta_player_in_lineup.salary
-            player_in_lineup_info['projection'] = user_player_info['projection']
-            total_projection += user_player_info['projection']
-            player_in_lineup_info['ownership'] = user_player_info['ownership']
-            player_in_lineup_info['team'] = meta_player_in_lineup.team.abbrev
-            player_in_lineup_info['opponent'] = meta_player_in_lineup.opponent
-            lineup[position] = player_in_lineup_info
-        lineup['total_salary'] = total_salary
-        lineup['total_projection'] = round(total_projection, 2)
-        return lineup
+    total_salary = 0
+    total_projection = 0
+    lineup = {}
+    for position, player_id in selected_players.items():
+        meta_player_in_lineup = Player.objects.get(id=player_id)
+        user_player_info = player_data[player_id]
+        player_in_lineup_info = {}
+        player_in_lineup_info['name'] = meta_player_in_lineup.name
+        player_in_lineup_info['salary'] = meta_player_in_lineup.salary
+        total_salary += meta_player_in_lineup.salary
+        player_in_lineup_info['projection'] = user_player_info['projection']
+        total_projection += user_player_info['projection']
+        player_in_lineup_info['ownership'] = user_player_info['ownership']
+        player_in_lineup_info['team'] = meta_player_in_lineup.team.abbrev
+        player_in_lineup_info['opponent'] = meta_player_in_lineup.opponent
+        lineup[position] = player_in_lineup_info
+    lineup['total_salary'] = total_salary
+    lineup['total_projection'] = round(total_projection, 2)
+    return lineup
 
 
 def get_slate_info(request, slate_id, user=None):
@@ -196,7 +207,8 @@ def get_slate_info(request, slate_id, user=None):
         for player in players:
             if user is not None:
                 try:
-                    user_player = UserPlayer.objects.get(meta_player=player, slate=slate, user=user)
+                    user_player = UserPlayer.objects.get(
+                        meta_player=player, slate=slate, user=user)
                     projection = user_player.projection
                     ownership = user_player.ownership
                     exposure = user_player.exposure
@@ -230,4 +242,3 @@ def get_slate_info(request, slate_id, user=None):
         return serialized_data
     except:
         return None
-
