@@ -14,6 +14,8 @@ from django.http import JsonResponse
 from nba.nba import prepare_optimize, get_slate_info, optimize
 from rest_framework.decorators import authentication_classes
 from rest_framework.authentication import TokenAuthentication
+from fuzzywuzzy import fuzz
+from .utils import player_mappings
 
 
 @api_view(['GET'])
@@ -36,17 +38,169 @@ def upload_projections(request):
     try:
         # Get uploaded csv file
         slate_file = request.FILES.get('file')
-        csv = DictReader(iterdecode(slate_file, 'utf-8'))
-        
+        csv_text = slate_file.read().decode('utf-8-sig')
+        csv = DictReader(csv_text.splitlines())
+        slate = Slate.objects.get(id=int(request.data['slate']))
+        user = request.user
+        all_players = Player.objects.filter(slate=slate)
+        unfound_players = []
+        assumed_players = {}
+
         # Gather player info
-        # for row in csv:
-        #     player = Player.objects.get(dk_id=row['ID'], slate=slate)
-        #     player.projection = row['AvgPointsPerGame']
-        #     player.save()
-        return Response({"message": "Projections uploaded successfully"}, status=status.HTTP_200_OK)
+        for row in csv:
+            player_name = row['Player']
+            try:
+                # Perfect Match
+                meta_player = Player.objects.get(name=player_name, slate=slate)
+                try:
+                    # Check if there is already a user player
+                    player = UserPlayer.objects.get(
+                        slate=slate, user=user, meta_player=meta_player)
+                    player.projection = float(row['Projection'])
+                    player.save()
+                except:
+                    player = UserPlayer.objects.create(
+                        slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=float(row['Projection']))
+                    player.save()
+            except:
+                player_found = False
+                # Check known player mappings
+                if player_name in player_mappings:
+                    meta_player_name = player_mappings[player_name]
+                    try:
+                        meta_player = Player.objects.get(
+                            name=meta_player_name, slate=slate)
+                    except:
+                        continue
+                    try:
+                        # Check if there is already a user player
+                        player = UserPlayer.objects.get(
+                            slate=slate, user=user, meta_player=meta_player)
+                        player.projection = float(row['Projection'])
+                        assumed_players[player_name] = meta_player.name
+                        player_found = True
+                        player.save()
+                        continue
+                    except:
+                        player = UserPlayer.objects.create(
+                            slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=float(row['Projection']))
+                        assumed_players[player_name] = meta_player.name
+                        player_found = True
+                        player.save()
+                        continue
+                for each_player in all_players:
+                    # Check un-altered names
+                    ratio = fuzz.ratio(each_player.name, player_name)
+                    if ratio > 85:
+                        # Store sudo match
+                        meta_player = each_player
+                        try:
+                            # Check if there is already a user player
+                            player = UserPlayer.objects.get(
+                                slate=slate, user=user, meta_player=meta_player)
+                            player.projection = float(row['Projection'])
+                            assumed_players[player_name] = meta_player.name
+                            player_found = True
+                            player.save()
+                            break
+                        except:
+                            player = UserPlayer.objects.create(
+                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=float(row['Projection']))
+                            assumed_players[player_name] = meta_player.name
+                            player_found = True
+                            player.save()
+                            break
+
+                    # Check altered names
+                    # Alter first name
+                    stripped_db_name = ""
+                    for ch in each_player.name:
+                        if ch.isalpha():
+                            stripped_db_name += ch
+                    # # Alter second name
+                    stripped_csv_name = ""
+                    for ch in player_name:
+                        if ch.isalpha():
+                            stripped_csv_name += ch
+                    ratio = fuzz.ratio(stripped_db_name, stripped_csv_name)
+                    partial_ratio = fuzz.partial_ratio(stripped_db_name,
+                                                       stripped_csv_name)
+                    # # Store sudo match
+                    if ratio > 75 and partial_ratio > 85:
+                        meta_player = each_player
+                        try:
+                            # Check if there is already a user player
+                            player = UserPlayer.objects.get(
+                                slate=slate, user=user, meta_player=meta_player)
+                            player.projection = float(row['Projection'])
+                            assumed_players[player_name] = meta_player.name
+                            player_found = True
+                            player.save()
+                            break
+                        except:
+                            player = UserPlayer.objects.create(
+                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=float(row['Projection']))
+                            assumed_players[player_name] = meta_player.name
+                            player_found = True
+                            player.save()
+                            break
+                if player_found == False:
+                    unfound_players.append(player_name)
+
+        return Response({'message': 'Success', "assumed-players": assumed_players, 'unfound-players': unfound_players}, status=status.HTTP_200_OK)
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# def update_default_projections(request, slate):
+#     # Accept csv
+#     projection_file = request.FILES['default-projections-csv']
+#     csv = DictReader(iterdecode(projection_file, 'utf-8'))
+#     this_slate = Slate.objects.get(pk=slate)  # Set slate
+#     # Pattern match names that don't match
+#     all_players = Player.objects.filter(slate=this_slate)
+#     for row in csv:
+#         player_name = row['Player']
+#         try:
+#             # Check if there is a perfect match
+#             player = Player.objects.get(name=player_name, slate=this_slate)
+#         except:
+#             # Check if there is a sudo-match
+#             for each_player in all_players:
+#                 # Check un-altered names
+#                 ratio = fuzz.ratio(each_player.name, player_name)
+#                 if ratio > 85:
+#                     # Store sudo match
+#                     player = each_player
+#                     player.projection = row['FFPts']
+#                     player.save()
+#                     break
+#                 # Check altered names
+#                 # Alter first name
+#                 stripped_db_name = ""
+#                 for ch in each_player.name:
+#                     if ch.isalpha():
+#                         stripped_db_name += ch
+#                 # Alter second name
+#                 stripped_csv_name = ""
+#                 for ch in player_name:
+#                     if ch.isalpha():
+#                         stripped_csv_name += ch
+#                 ratio = fuzz.ratio(stripped_db_name, stripped_csv_name)
+#                 partial_ratio = fuzz.partial_ratio(stripped_db_name,
+#                                                    stripped_csv_name)
+#                 # Store sudo match
+#                 if ratio > 75 and partial_ratio > 85:
+#                     player = each_player
+#                     player.projection = row['FFPts']
+#                     player.save()
+#                     break
+#             continue
+#         # Store perfect match
+#         player.projection = row['FFPts']
+#         player.save()
+#     return HttpResponseRedirect(reverse('update_slates'))
 
 
 @api_view(['POST'])
@@ -177,7 +331,7 @@ def player_settings(request):
         remove = settings['remove']
         ownership = settings['ownership']
         exposure = settings['exposure']
-        projection = settings['projection']
+        projection = settings['projection']['projection']
         UserPlayer.objects.update_or_create(
             meta_player=meta_player,
             slate=slate,

@@ -209,7 +209,9 @@ def get_slate_info(request, slate_id, user=None):
                 try:
                     user_player = UserPlayer.objects.get(
                         meta_player=player, slate=slate, user=user)
-                    projection = user_player.projection
+                    projection = {}
+                    projection['projection'] = user_player.projection
+                    projection['custom'] = False
                     ownership = user_player.ownership
                     exposure = user_player.exposure
                     remove = user_player.remove
@@ -217,20 +219,25 @@ def get_slate_info(request, slate_id, user=None):
                     if lock:
                         user_locks['count'] += 1
                         user_locks['salary'] += player.salary
+                    if user_player.projection != player.projection:
+                        projection['custom'] = True
+
                 except:
-                    projection = player.projection
+                    projection = {
+                        'projection': player.projection, 'custom': False}
                     ownership = 0
                     exposure = 0
                     remove = False
                     lock = False
             else:
-                projection = player.projection
+                projection = {'projection': player.projection, 'custom': False}
                 ownership = 0
                 exposure = 0
                 remove = False
                 lock = False
             player_info.append({'id': player.id, 'name': player.name,
-                                'team': player.team.abbrev, 'salary': player.salary, 'projection': projection, 'remove': remove, 'lock': lock, 'dk_id': player.dk_id, 'position': player.position, 'opponent': player.opponent, 'xvalue': '', 'exposure': exposure, 'ownership': ownership})
+                                'team': player.team.abbrev, 'salary': player.salary, 'projection': projection, 'remove': remove, 'lock': lock, 'dk_id': player.dk_id, 'position': player.position, 'opponent': player.opponent, 'xvalue': '', 'exposure': exposure, 'ownership': ownership,
+                                })
         slate_info = {'id': slate.id, 'date': slate.date, }
         serialized_data = {
             'slate': slate_info,
