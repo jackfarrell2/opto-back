@@ -76,14 +76,13 @@ def optimize(players, settings):
     # User Settings
     lineups = []
     slate = settings['slate']
-    # num_lineups = settings['num-lineups']
     uniques = int(settings['uniques'])
     max_team_players = int(settings['maxTeamPlayers'])
     min_team_salary = int(settings['minSalary'])
     max_team_salary = int(settings['maxSalary'])
     locks = settings['locks']
     # To be updated later
-    num_lineups = 1
+    num_lineups = int(settings['numLineups'])
     # Global Settings
     num_players = 8
     position_slots = ['F', 'C', 'G', 'SG', 'PG', 'SF', 'PF', 'UTIL']
