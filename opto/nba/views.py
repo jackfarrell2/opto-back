@@ -16,7 +16,8 @@ from rest_framework.decorators import authentication_classes
 from rest_framework.authentication import TokenAuthentication
 from fuzzywuzzy import fuzz
 from .utils import player_mappings
-
+import csv
+import openpyxl
 
 @api_view(['GET'])
 def get_slates(request):
@@ -31,24 +32,55 @@ def get_slates(request):
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 def upload_projections(request):
+    method = request.data['method']
+    if method != 'file' and method != 'paste':
+        return Response({"error": "Invalid method"}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        # Get uploaded csv file
-        slate_file = request.FILES.get('file')
-        csv_text = slate_file.read().decode('utf-8-sig')
-        csv = DictReader(csv_text.splitlines())
+        if method == 'file':
+            # Get uploaded csv file
+            slate_file = request.FILES.get('file')
+            if slate_file.name.endswith('.xlsx'):
+                # Convert XLSX to CSV
+                workbook = openpyxl.load_workbook(slate_file)
+                sheet = workbook.active
+                csv_text = "\n".join([",".join(map(str, row)) for row in sheet.iter_rows(values_only=True)])
+            else:
+                # Read as CSV if it's not an XLSX file
+                csv_text = slate_file.read().decode('utf-8-sig')
+            csv = DictReader(csv_text.splitlines())
+        elif method == 'paste':
+            paste_projections = request.data['paste-projections']
+            projections = json.loads(paste_projections)
         slate = Slate.objects.get(id=int(request.data['slate']))
         user = request.user
         all_players = Player.objects.filter(slate=slate)
         unfound_players = []
         assumed_players = {}
-
+        all_player_data = ''
+        if method == 'file':
+            all_player_data = csv
+        elif method == 'paste':
+            all_player_data = projections
+            if len(all_player_data) > 1000:
+                return Response({"error": "File too large"}, status=status.HTTP_400_BAD_REQUEST)
         # Gather player info
-        for row in csv:
-            player_name = row['Player']
+        for row in all_player_data:
+            if method == 'file':
+                try:
+                    player_name = row['Player']
+                except:
+                    player_name = row['player']
+                try:
+                    player_projection = float(row['Projection'])
+                except:
+                    player_projection = float(row['projection'])
+            elif method == 'paste':
+                player_name = row
+                player_projection = float(all_player_data[row])
+            
             try:
                 # Perfect Match
                 meta_player = Player.objects.get(name=player_name, slate=slate)
@@ -56,11 +88,11 @@ def upload_projections(request):
                     # Check if there is already a user player
                     player = UserPlayer.objects.get(
                         slate=slate, user=user, meta_player=meta_player)
-                    player.projection = float(row['Projection'])
+                    player.projection = player_projection
                     player.save()
                 except:
                     player = UserPlayer.objects.create(
-                        slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=float(row['Projection']))
+                        slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=player_projection)
                     player.save()
             except:
                 player_found = False
@@ -76,14 +108,14 @@ def upload_projections(request):
                         # Check if there is already a user player
                         player = UserPlayer.objects.get(
                             slate=slate, user=user, meta_player=meta_player)
-                        player.projection = float(row['Projection'])
+                        player.projection = player_projection
                         assumed_players[player_name] = meta_player.name
                         player_found = True
                         player.save()
                         continue
                     except:
                         player = UserPlayer.objects.create(
-                            slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=float(row['Projection']))
+                            slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=player_projection)
                         assumed_players[player_name] = meta_player.name
                         player_found = True
                         player.save()
@@ -98,14 +130,14 @@ def upload_projections(request):
                             # Check if there is already a user player
                             player = UserPlayer.objects.get(
                                 slate=slate, user=user, meta_player=meta_player)
-                            player.projection = float(row['Projection'])
+                            player.projection = player_projection
                             assumed_players[player_name] = meta_player.name
                             player_found = True
                             player.save()
                             break
                         except:
                             player = UserPlayer.objects.create(
-                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=float(row['Projection']))
+                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=player_projection)
                             assumed_players[player_name] = meta_player.name
                             player_found = True
                             player.save()
@@ -132,14 +164,14 @@ def upload_projections(request):
                             # Check if there is already a user player
                             player = UserPlayer.objects.get(
                                 slate=slate, user=user, meta_player=meta_player)
-                            player.projection = float(row['Projection'])
+                            player.projection = player_projection
                             assumed_players[player_name] = meta_player.name
                             player_found = True
                             player.save()
                             break
                         except:
                             player = UserPlayer.objects.create(
-                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=float(row['Projection']))
+                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=player_projection)
                             assumed_players[player_name] = meta_player.name
                             player_found = True
                             player.save()
