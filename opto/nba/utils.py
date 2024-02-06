@@ -7,4 +7,10 @@ player_mappings = {
     'Matthew Hurt': 'Matt Hurt',
     'MarJon Beauchamp': 'Marjon Beauchamp',
     'Kev Durant': 'Kevin Durant',
+    'Jabari Smith Jr': 'Jabari Smith Jr.',
+    'Lonnie Walker': 'Lonnie Walker IV',
+    'Derrick Jones': 'Derrick Jones Jr.',
+    'Harry Giles': 'Harry Giles III',
+    'Cam Johnson': 'Cameron Johnson',
+    'Nicolas Claxton': 'Nic Claxton',
 }

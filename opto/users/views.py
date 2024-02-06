@@ -23,7 +23,9 @@ def login(request):
     if user is not None:
         token, created = Token.objects.get_or_create(user=user)
         serializer = UserSerializer(instance=user)
-        return Response({'token': token.key, 'user': serializer.data})
+        serializer_data = serializer.data
+        serializer_data['isStaff'] = user.is_staff
+        return Response({'token': token.key, 'user': serializer_data})
     else:
         return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 

@@ -11,18 +11,35 @@ from datetime import datetime
 from django.core.serializers.json import DjangoJSONEncoder
 from decimal import Decimal
 from django.http import JsonResponse
-from nba.nba import prepare_optimize, get_slate_info, optimize
+from nba.nba import prepare_optimize, get_slate_info, optimize, update_default_projections, randomize_within_percentage
 from rest_framework.decorators import authentication_classes
 from rest_framework.authentication import TokenAuthentication
 from fuzzywuzzy import fuzz
 from .utils import player_mappings
-import csv
 import openpyxl
+from datetime import datetime, timedelta, timezone
+
 
 @api_view(['GET'])
 def get_slates(request):
     try:
-        slates = Slate.objects.filter(sport='NBA').order_by('date')
+        current_datetime_utc = datetime.now(timezone.utc)
+        next_930_utc = current_datetime_utc.replace(
+            hour=9, minute=30, second=0, microsecond=0)
+        if current_datetime_utc > next_930_utc:
+            # If it's already past 4:30 AM, move to the next day
+            next_930_utc += timedelta(days=1)
+
+        future_slates = Slate.objects.filter(
+            sport='NBA', date__gte=next_930_utc).order_by('date')
+
+        if future_slates.exists():
+            slates = future_slates
+        else:
+            nearest_upcoming_slate = Slate.objects.filter(
+                sport='NBA', date__lt=next_930_utc).order_by('-date').first()
+            slates = [nearest_upcoming_slate] if nearest_upcoming_slate else []
+
         formatted_slates = []
         for slate in slates:
             formatted_slates.append(
@@ -31,6 +48,7 @@ def get_slates(request):
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
@@ -46,7 +64,8 @@ def upload_projections(request):
                 # Convert XLSX to CSV
                 workbook = openpyxl.load_workbook(slate_file)
                 sheet = workbook.active
-                csv_text = "\n".join([",".join(map(str, row)) for row in sheet.iter_rows(values_only=True)])
+                csv_text = "\n".join([",".join(map(str, row))
+                                     for row in sheet.iter_rows(values_only=True)])
             else:
                 # Read as CSV if it's not an XLSX file
                 csv_text = slate_file.read().decode('utf-8-sig')
@@ -80,7 +99,7 @@ def upload_projections(request):
             elif method == 'paste':
                 player_name = row
                 player_projection = float(all_player_data[row])
-            
+
             try:
                 # Perfect Match
                 meta_player = Player.objects.get(name=player_name, slate=slate)
@@ -123,7 +142,7 @@ def upload_projections(request):
                 for each_player in all_players:
                     # Check un-altered names
                     ratio = fuzz.ratio(each_player.name, player_name)
-                    if ratio > 85:
+                    if ratio > 80:
                         # Store sudo match
                         meta_player = each_player
                         try:
@@ -158,7 +177,7 @@ def upload_projections(request):
                     partial_ratio = fuzz.partial_ratio(stripped_db_name,
                                                        stripped_csv_name)
                     # # Store sudo match
-                    if ratio > 75 and partial_ratio > 85:
+                    if ratio > 70 and partial_ratio > 80:
                         meta_player = each_player
                         try:
                             # Check if there is already a user player
@@ -185,60 +204,24 @@ def upload_projections(request):
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# def update_default_projections(request, slate):
-#     # Accept csv
-#     projection_file = request.FILES['default-projections-csv']
-#     csv = DictReader(iterdecode(projection_file, 'utf-8'))
-#     this_slate = Slate.objects.get(pk=slate)  # Set slate
-#     # Pattern match names that don't match
-#     all_players = Player.objects.filter(slate=this_slate)
-#     for row in csv:
-#         player_name = row['Player']
-#         try:
-#             # Check if there is a perfect match
-#             player = Player.objects.get(name=player_name, slate=this_slate)
-#         except:
-#             # Check if there is a sudo-match
-#             for each_player in all_players:
-#                 # Check un-altered names
-#                 ratio = fuzz.ratio(each_player.name, player_name)
-#                 if ratio > 85:
-#                     # Store sudo match
-#                     player = each_player
-#                     player.projection = row['FFPts']
-#                     player.save()
-#                     break
-#                 # Check altered names
-#                 # Alter first name
-#                 stripped_db_name = ""
-#                 for ch in each_player.name:
-#                     if ch.isalpha():
-#                         stripped_db_name += ch
-#                 # Alter second name
-#                 stripped_csv_name = ""
-#                 for ch in player_name:
-#                     if ch.isalpha():
-#                         stripped_csv_name += ch
-#                 ratio = fuzz.ratio(stripped_db_name, stripped_csv_name)
-#                 partial_ratio = fuzz.partial_ratio(stripped_db_name,
-#                                                    stripped_csv_name)
-#                 # Store sudo match
-#                 if ratio > 75 and partial_ratio > 85:
-#                     player = each_player
-#                     player.projection = row['FFPts']
-#                     player.save()
-#                     break
-#             continue
-#         # Store perfect match
-#         player.projection = row['FFPts']
-#         player.save()
-#     return HttpResponseRedirect(reverse('update_slates'))
-
-
 @api_view(['POST'])
+@authentication_classes([TokenAuthentication])
 def add_slate(request):
+    if request.user.is_staff == False:
+        return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
     # Get uploaded csv file
-    slate_file = request.FILES['file']
+    if request.data['projections-only'] == 'true':
+        default_projections = request.FILES['file-two']
+        slate = Slate.objects.get(pk=int(request.data['slate']))
+        update_default_projections(slate.id, default_projections)
+        for player in Player.objects.filter(slate=slate):
+            new_num = randomize_within_percentage(
+                float(player.projection), 7.5)
+            player.projection = new_num
+            player.save()
+        return Response({})
+    slate_file = request.FILES['file-one']
+    default_projections = request.FILES['file-two']
     csv = DictReader(iterdecode(slate_file, 'utf-8'))
     # Gather slates game info
     game_times = []
@@ -304,7 +287,7 @@ def add_slate(request):
                 position_flags[position] = True
         team = Team.objects.get(abbrev=row['TeamAbbrev'], slate=slate)
         opponent = team.opponent
-        projection = row['AvgPointsPerGame']
+        projection = 0
 
         # Add player
         player = Player(name=row['Name'],
@@ -324,6 +307,13 @@ def add_slate(request):
                         UTIL=position_flags['UTIL'],
                         position=default_position)
         player.save()
+    # Add default projections
+    update_default_projections(slate.id, default_projections)
+    for player in Player.objects.filter(slate=slate):
+        new_num = randomize_within_percentage(float(player.projection), 7.5)
+        player.projection = new_num
+        player.save()
+
     return Response({})
 
 

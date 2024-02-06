@@ -2,6 +2,11 @@ from pulp import LpMaximize, LpProblem, LpVariable, lpSum
 from .models import Slate, Game, Team, Player, UserPlayer, UserOptoSettings
 import re
 import json
+from csv import DictReader
+from .utils import player_mappings
+from fuzzywuzzy import fuzz
+from codecs import iterdecode
+import random
 
 
 def store_opto_settings(user, slate, settings):
@@ -13,6 +18,18 @@ def store_opto_settings(user, slate, settings):
             'max_players_per_team': settings['maxTeamPlayers']
         }
     )
+
+
+def randomize_within_percentage(number, percentage):
+    if percentage < 0 or percentage > 100:
+        raise ValueError("Percentage must be between 0 and 100")
+
+    deviation = (percentage / 100) * number
+    lower_bound = number - deviation
+    upper_bound = number + deviation
+
+    randomized_number = random.uniform(lower_bound, upper_bound)
+    return randomized_number
 
 
 def prepare_optimize(request, user=None):
@@ -187,6 +204,63 @@ def get_lineup_info(selected_players, player_data):
     lineup['total_salary'] = total_salary
     lineup['total_projection'] = round(total_projection, 2)
     return lineup
+
+
+def update_default_projections(slate, projections):
+    # Accept csv
+    csv = DictReader(iterdecode(projections, 'utf-8'))
+    this_slate = Slate.objects.get(pk=slate)  # Set slate
+    # Pattern match names that don't match
+    all_players = Player.objects.filter(slate=this_slate)
+    for row in csv:
+        player_name = row['Player']
+        try:
+            # Check if there is a perfect match
+            player = Player.objects.get(name=player_name, slate=this_slate)
+        except:
+            # Check if there is a sudo-match
+            # Check known player mappings
+            if player_name in player_mappings:
+                meta_player_name = player_mappings[player_name]
+                try:
+                    player = Player.objects.get(
+                        name=meta_player_name, slate=slate)
+                except:
+                    continue
+            for each_player in all_players:
+                # Check un-altered names
+                ratio = fuzz.ratio(each_player.name, player_name)
+                if ratio > 80:
+                    # Store sudo match
+                    player = each_player
+                    player.projection = row['Proj']
+                    player.save()
+                    break
+                # Check altered names
+                # Alter first name
+                stripped_db_name = ""
+                for ch in each_player.name:
+                    if ch.isalpha():
+                        stripped_db_name += ch
+                # Alter second name
+                stripped_csv_name = ""
+                for ch in player_name:
+                    if ch.isalpha():
+                        stripped_csv_name += ch
+                ratio = fuzz.ratio(stripped_db_name, stripped_csv_name)
+                partial_ratio = fuzz.partial_ratio(stripped_db_name,
+                                                   stripped_csv_name)
+                # Store sudo match
+                if ratio > 70 and partial_ratio > 80:
+                    player = each_player
+                    player.projection = row['Proj']
+                    player.save()
+                    break
+            continue
+        # Store perfect match
+        player.projection = row['Proj']
+        player.save()
+    return True
 
 
 def get_slate_info(request, slate_id, user=None):
