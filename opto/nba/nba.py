@@ -7,6 +7,8 @@ from .utils import player_mappings
 from fuzzywuzzy import fuzz
 from codecs import iterdecode
 import random
+import math
+from collections import OrderedDict
 
 
 def store_opto_settings(user, slate, settings):
@@ -103,6 +105,7 @@ def optimize(players, settings, teams):
     meta_players = {}
     locked_players = {}
     exposure_tracker = {}
+    general_count_tracker = {}
     # Separate each player into each position they are eligible for
     for player, players_optimization_info in players.items():
         if players_optimization_info['exposure'] < 100:
@@ -234,7 +237,8 @@ def optimize(players, settings, teams):
         # Get the selected players
         these_selected_players = {key.split('_')[1]: key.split(
             '_')[0] for key, value in selected_players.items() if value.value() == 1}
-        lineup_info = get_lineup_info(these_selected_players, players)
+        lineup_info = get_lineup_info(these_selected_players, players, general_count_tracker)
+        general_count_tracker = lineup_info['general-count-tracker']
         opto_lineups.append(these_selected_players)
         # Check for overexposed players
         for exposure_player in these_selected_players.values():
@@ -244,12 +248,15 @@ def optimize(players, settings, teams):
                     exposure_tracker[exposure_player]['count'] / opto_count) * 100
                 if current_exposure > exposure_tracker[exposure_player]['exposure']:
                     overexposed_players.append(exposure_player)
-        lineups.append(lineup_info)
+        lineups.append(lineup_info['lineup-info'])
 
-    return lineups
+    exposures = {}
+    for exposure_id, exposure_info in general_count_tracker.items():
+        exposures[exposure_id] = {'exposure': math.floor(((exposure_info['count'] / num_lineups) * 100)), 'player-name': exposure_info['name'], 'team': exposure_info['team'], 'count': exposure_info['count']}
+    return {'lineups': lineups, 'exposures': exposures, 'complete': True}
 
 
-def get_lineup_info(selected_players, player_data):
+def get_lineup_info(selected_players, player_data, general_count_tracker):
     # Get necessary lineup data
     total_salary = 0
     total_projection = 0
@@ -266,10 +273,15 @@ def get_lineup_info(selected_players, player_data):
         player_in_lineup_info['ownership'] = user_player_info['ownership']
         player_in_lineup_info['team'] = meta_player_in_lineup.team.abbrev
         player_in_lineup_info['opponent'] = meta_player_in_lineup.opponent
+        player_in_lineup_info['dk-id'] = meta_player_in_lineup.dk_id
+        if str(meta_player_in_lineup.dk_id) in general_count_tracker:
+            general_count_tracker[str(meta_player_in_lineup.dk_id)]['count'] += 1
+        else:
+            general_count_tracker[str(meta_player_in_lineup.dk_id)] = {'count': 1, 'name': meta_player_in_lineup.name, 'team': meta_player_in_lineup.team.abbrev}
         lineup[position] = player_in_lineup_info
     lineup['total_salary'] = total_salary
     lineup['total_projection'] = round(total_projection, 2)
-    return lineup
+    return {'lineup-info': lineup, 'general-count-tracker': general_count_tracker}
 
 
 def update_default_projections(slate, projections):
