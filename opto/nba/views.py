@@ -103,7 +103,7 @@ def upload_projections(request):
             try:
                 # Perfect Match
                 meta_player = Player.objects.get(name=player_name, slate=slate)
-                try:
+                try: 
                     # Check if there is already a user player
                     player = UserPlayer.objects.get(
                         slate=slate, user=user, meta_player=meta_player)
@@ -111,7 +111,7 @@ def upload_projections(request):
                     player.save()
                 except:
                     player = UserPlayer.objects.create(
-                        slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=player_projection)
+                        slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=100, projection=player_projection)
                     player.save()
             except:
                 player_found = False
@@ -134,7 +134,7 @@ def upload_projections(request):
                         continue
                     except:
                         player = UserPlayer.objects.create(
-                            slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=player_projection)
+                            slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=100, projection=player_projection)
                         assumed_players[player_name] = meta_player.name
                         player_found = True
                         player.save()
@@ -156,7 +156,7 @@ def upload_projections(request):
                             break
                         except:
                             player = UserPlayer.objects.create(
-                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=player_projection)
+                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=100, projection=player_projection)
                             assumed_players[player_name] = meta_player.name
                             player_found = True
                             player.save()
@@ -190,7 +190,7 @@ def upload_projections(request):
                             break
                         except:
                             player = UserPlayer.objects.create(
-                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=0, projection=player_projection)
+                                slate=slate, user=user, meta_player=meta_player, lock=False, remove=False, ownership=0, exposure=100, projection=player_projection)
                             assumed_players[player_name] = meta_player.name
                             player_found = True
                             player.save()
@@ -386,7 +386,7 @@ def user_opto_settings(request):
                         user=request.user)
                     user_opto_settings_object.save()
                 user_opto_settings = {'uniques': user_opto_settings_object.uniques, 'min-salary': user_opto_settings_object.min_salary,
-                                      'max-salary': user_opto_settings_object.max_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team}
+                                      'max-salary': user_opto_settings_object.max_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team, 'num-lineups': 20}
                 return Response(user_opto_settings)
             except Exception as e:
                 error_message = f"An error occurred: {str(e)}"
@@ -420,7 +420,8 @@ def authenticated_optimize(request):
         opto_settings = optimization_info['opto-settings']
         opto_settings['slate'] = optimization_info['slate']
         opto_settings['locks'] = optimization_info['locks']
-        lineups = optimize(player_data, opto_settings)
+        teams = optimization_info['teams']
+        lineups = optimize(player_data, opto_settings, teams)
         return JsonResponse({'lineups': lineups}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
         error_message = f"Invalid JSON data: {str(e)}"
@@ -438,7 +439,8 @@ def unauthenticated_optimize(request):
         opto_settings = optimization_info['opto-settings']
         opto_settings['slate'] = optimization_info['slate']
         opto_settings['locks'] = optimization_info['locks']
-        lineups = optimize(player_data, opto_settings)
+        teams = optimization_info['teams']
+        lineups = optimize(player_data, opto_settings, teams)
         return JsonResponse({'lineups': lineups}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
         error_message = f"Invalid JSON data: {str(e)}"

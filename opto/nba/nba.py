@@ -51,6 +51,15 @@ def prepare_optimize(request, user=None):
             parsed_data[player_id][attribute] = value
     this_optimization_players = {}
     locks = []
+    teams = Team.objects.filter(slate=slate)
+    team_list = {}
+    for i in range(len(teams)):
+        this_team_list = []
+        team = teams[i]
+        team_players = Player.objects.filter(slate=slate, team=team)
+        for player in team_players:
+            this_team_list.append(player.id)
+        team_list[team.abbrev] = this_team_list
     for key, value in parsed_data.items():
         meta_player = Player.objects.get(id=key)
         lock = bool(value['lock'].lower())
@@ -69,12 +78,13 @@ def prepare_optimize(request, user=None):
         if not remove:
             this_optimization_players[str(meta_player.id)] = {
                 'name': meta_player.name, 'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
-    return {'slate': slate, 'players': this_optimization_players, 'opto-settings': data['opto-settings'], 'locks': locks}
+    return {'slate': slate, 'players': this_optimization_players, 'opto-settings': data['opto-settings'], 'locks': locks, 'teams': team_list}
 
 
-def optimize(players, settings):
+def optimize(players, settings, teams):
     # User Settings
     lineups = []
+    opto_lineups = []
     slate = settings['slate']
     uniques = int(settings['uniques'])
     max_team_players = int(settings['maxTeamPlayers'])
@@ -88,8 +98,11 @@ def optimize(players, settings):
     position_slots = ['F', 'C', 'G', 'SG', 'PG', 'SF', 'PF', 'UTIL']
     meta_players = {}
     locked_players = {}
+    exposure_tracker = {}
     # Separate each player into each position they are eligible for
     for player, players_optimization_info in players.items():
+        if players_optimization_info['exposure'] < 100:
+            exposure_tracker[player] = {'count': 0, 'exposure': players_optimization_info['exposure']}
         meta_player = Player.objects.get(id=int(player))
         eligible_positions = []
         for position in position_slots:
@@ -168,15 +181,57 @@ def optimize(players, settings):
     # Constraint: Select max one meta player:
     for player_id, player_item in meta_players.items():
         model += lpSum(selected_players[f"{player_id}_{position}"]
-                       for position in player_item['positions']) <= 1
+                       for position in player_item['positions']) <= 1, f"max_one_{player_id}"
+    
+    # Constraint: Limit the number of players from each team
+    for team, team_players in teams.items():
+        team_players_per_position = []
+        for team_player in team_players:
+            for position in meta_players[str(team_player)]['positions']:
+                team_players_per_position.append(
+                    selected_players[f"{team_player}_{position}"])
+        model += lpSum(team_players_per_position) <= max_team_players
 
+    # Build lineups
+    overexposed_players = []
+    opto_count = 0
     for i in range(num_lineups):
+        # Constraint - check if a player is overexposed
+        for player in overexposed_players[:]:
+            players_current_exposure = (exposure_tracker[player]['count'] / opto_count) * 100
+            if players_current_exposure <= exposure_tracker[player]['exposure']:
+                overexposed_players.remove(player)
+                model.constraints.pop(f"overexposed_{player}")
+        for overexposed_player in overexposed_players:
+            players_positions_variables = []
+            for position in meta_players[overexposed_player]['positions']:
+                players_positions_variables.append(selected_players[f"{overexposed_player}_{position}"])
+            players_constraint = lpSum(players_positions_variables) == 0
+            model += players_constraint, f"overexposed_{overexposed_player}"
+                
+        # Constraint - add previous lineup uniqueness
+        previous_lineup  = opto_lineups[i-1] if i > 0 else None
+        if previous_lineup:
+            all_player_versions = []
+            for player, player_id in previous_lineup.items():
+                for position in meta_players[player_id]['positions']:
+                    all_player_versions.append(selected_players[f"{player_id}_{position}"])
+            model += lpSum(all_player_versions) <= (num_players - uniques)
+        opto_count += 1
         # Solve the problem
         model.solve()
         # Get the selected players
-        selected_players = {key.split('_')[1]: key.split(
+        these_selected_players = {key.split('_')[1]: key.split(
             '_')[0] for key, value in selected_players.items() if value.value() == 1}
-        lineup_info = get_lineup_info(selected_players, players)
+        lineup_info = get_lineup_info(these_selected_players, players)
+        opto_lineups.append(these_selected_players)
+        # Check for overexposed players
+        for exposure_player in these_selected_players.values():
+            if exposure_player in exposure_tracker:
+                exposure_tracker[exposure_player]['count'] += 1
+                current_exposure = (exposure_tracker[exposure_player]['count'] / opto_count) * 100
+                if current_exposure > exposure_tracker[exposure_player]['exposure']:
+                    overexposed_players.append(exposure_player)
         lineups.append(lineup_info)
 
     return lineups

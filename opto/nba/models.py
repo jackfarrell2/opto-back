@@ -79,9 +79,9 @@ class UserPlayer(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     lock = models.BooleanField(default=False)
     remove = models.BooleanField(default=False)
-    ownership = models.DecimalField(max_digits=4, decimal_places=2)
-    exposure = models.DecimalField(max_digits=4, decimal_places=2)
-    projection = models.DecimalField(max_digits=4, decimal_places=2)
+    ownership = models.DecimalField(max_digits=5, decimal_places=2)
+    exposure = models.DecimalField(max_digits=5, decimal_places=2, default=100)
+    projection = models.DecimalField(max_digits=5, decimal_places=2)
     
     def __str__(self):
         return f"{self.meta_player} - {self.user} - {self.slate}"
