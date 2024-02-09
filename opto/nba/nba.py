@@ -50,6 +50,7 @@ def prepare_optimize(request, user=None):
                 parsed_data[player_id] = {}
             parsed_data[player_id][attribute] = value
     this_optimization_players = {}
+    removed_players = []
     locks = []
     teams = Team.objects.filter(slate=slate)
     team_list = {}
@@ -78,7 +79,9 @@ def prepare_optimize(request, user=None):
         if not remove:
             this_optimization_players[str(meta_player.id)] = {
                 'name': meta_player.name, 'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
-    return {'slate': slate, 'players': this_optimization_players, 'opto-settings': data['opto-settings'], 'locks': locks, 'teams': team_list}
+        else:
+            removed_players.append(str(meta_player.id))
+    return {'slate': slate, 'players': this_optimization_players, 'opto-settings': data['opto-settings'], 'locks': locks, 'teams': team_list, 'removed-players': removed_players}
 
 
 def optimize(players, settings, teams):
@@ -90,6 +93,7 @@ def optimize(players, settings, teams):
     max_team_players = int(settings['maxTeamPlayers'])
     min_team_salary = int(settings['minSalary'])
     max_team_salary = int(settings['maxSalary'])
+    removed_players = settings['removed-players']
     locks = settings['locks']
     # To be updated later
     num_lineups = int(settings['numLineups'])
@@ -102,7 +106,8 @@ def optimize(players, settings, teams):
     # Separate each player into each position they are eligible for
     for player, players_optimization_info in players.items():
         if players_optimization_info['exposure'] < 100:
-            exposure_tracker[player] = {'count': 0, 'exposure': players_optimization_info['exposure']}
+            exposure_tracker[player] = {
+                'count': 0, 'exposure': players_optimization_info['exposure']}
         meta_player = Player.objects.get(id=int(player))
         eligible_positions = []
         for position in position_slots:
@@ -182,14 +187,15 @@ def optimize(players, settings, teams):
     for player_id, player_item in meta_players.items():
         model += lpSum(selected_players[f"{player_id}_{position}"]
                        for position in player_item['positions']) <= 1, f"max_one_{player_id}"
-    
+
     # Constraint: Limit the number of players from each team
     for team, team_players in teams.items():
         team_players_per_position = []
         for team_player in team_players:
-            for position in meta_players[str(team_player)]['positions']:
-                team_players_per_position.append(
-                    selected_players[f"{team_player}_{position}"])
+            if str(team_player) not in removed_players:
+                for position in meta_players[str(team_player)]['positions']:
+                    team_players_per_position.append(
+                        selected_players[f"{team_player}_{position}"])
         model += lpSum(team_players_per_position) <= max_team_players
 
     # Build lineups
@@ -198,24 +204,29 @@ def optimize(players, settings, teams):
     for i in range(num_lineups):
         # Constraint - check if a player is overexposed
         for player in overexposed_players[:]:
-            players_current_exposure = (exposure_tracker[player]['count'] / opto_count) * 100
+            players_current_exposure = (
+                exposure_tracker[player]['count'] / opto_count) * 100
             if players_current_exposure <= exposure_tracker[player]['exposure']:
                 overexposed_players.remove(player)
                 model.constraints.pop(f"overexposed_{player}")
         for overexposed_player in overexposed_players:
-            players_positions_variables = []
-            for position in meta_players[overexposed_player]['positions']:
-                players_positions_variables.append(selected_players[f"{overexposed_player}_{position}"])
-            players_constraint = lpSum(players_positions_variables) == 0
-            model += players_constraint, f"overexposed_{overexposed_player}"
-                
+            overexposed_player_constraint_name = f"overexposed_{overexposed_player}"
+            if overexposed_player_constraint_name not in model.constraints:
+                players_positions_variables = []
+                for position in meta_players[overexposed_player]['positions']:
+                    players_positions_variables.append(
+                        selected_players[f"{overexposed_player}_{position}"])
+                players_constraint = lpSum(players_positions_variables) == 0
+                model += players_constraint, f"overexposed_{overexposed_player}"
+
         # Constraint - add previous lineup uniqueness
-        previous_lineup  = opto_lineups[i-1] if i > 0 else None
+        previous_lineup = opto_lineups[i-1] if i > 0 else None
         if previous_lineup:
             all_player_versions = []
             for player, player_id in previous_lineup.items():
                 for position in meta_players[player_id]['positions']:
-                    all_player_versions.append(selected_players[f"{player_id}_{position}"])
+                    all_player_versions.append(
+                        selected_players[f"{player_id}_{position}"])
             model += lpSum(all_player_versions) <= (num_players - uniques)
         opto_count += 1
         # Solve the problem
@@ -229,7 +240,8 @@ def optimize(players, settings, teams):
         for exposure_player in these_selected_players.values():
             if exposure_player in exposure_tracker:
                 exposure_tracker[exposure_player]['count'] += 1
-                current_exposure = (exposure_tracker[exposure_player]['count'] / opto_count) * 100
+                current_exposure = (
+                    exposure_tracker[exposure_player]['count'] / opto_count) * 100
                 if current_exposure > exposure_tracker[exposure_player]['exposure']:
                     overexposed_players.append(exposure_player)
         lineups.append(lineup_info)
@@ -284,7 +296,7 @@ def update_default_projections(slate, projections):
             for each_player in all_players:
                 # Check un-altered names
                 ratio = fuzz.ratio(each_player.name, player_name)
-                if ratio > 80:
+                if ratio > 85:
                     # Store sudo match
                     player = each_player
                     player.projection = row['Proj']
@@ -305,7 +317,7 @@ def update_default_projections(slate, projections):
                 partial_ratio = fuzz.partial_ratio(stripped_db_name,
                                                    stripped_csv_name)
                 # Store sudo match
-                if ratio > 70 and partial_ratio > 80:
+                if ratio > 75 and partial_ratio > 85:
                     player = each_player
                     player.projection = row['Proj']
                     player.save()

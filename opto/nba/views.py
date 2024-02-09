@@ -103,7 +103,7 @@ def upload_projections(request):
             try:
                 # Perfect Match
                 meta_player = Player.objects.get(name=player_name, slate=slate)
-                try: 
+                try:
                     # Check if there is already a user player
                     player = UserPlayer.objects.get(
                         slate=slate, user=user, meta_player=meta_player)
@@ -142,7 +142,7 @@ def upload_projections(request):
                 for each_player in all_players:
                     # Check un-altered names
                     ratio = fuzz.ratio(each_player.name, player_name)
-                    if ratio > 80:
+                    if ratio > 85:
                         # Store sudo match
                         meta_player = each_player
                         try:
@@ -177,7 +177,7 @@ def upload_projections(request):
                     partial_ratio = fuzz.partial_ratio(stripped_db_name,
                                                        stripped_csv_name)
                     # # Store sudo match
-                    if ratio > 70 and partial_ratio > 80:
+                    if ratio > 75 and partial_ratio > 85:
                         meta_player = each_player
                         try:
                             # Check if there is already a user player
@@ -420,6 +420,7 @@ def authenticated_optimize(request):
         opto_settings = optimization_info['opto-settings']
         opto_settings['slate'] = optimization_info['slate']
         opto_settings['locks'] = optimization_info['locks']
+        opto_settings['removed-players'] = optimization_info['removed-players']
         teams = optimization_info['teams']
         lineups = optimize(player_data, opto_settings, teams)
         return JsonResponse({'lineups': lineups}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
