@@ -363,7 +363,7 @@ def get_slate_info(request, slate_id, user=None):
                         meta_player=player, slate=slate, user=user)
                     projection = {}
                     projection['projection'] = user_player.projection
-                    projection['custom'] = False
+                    projection['custom'] = True
                     ownership = user_player.ownership
                     exposure = user_player.exposure
                     remove = user_player.remove
@@ -371,8 +371,6 @@ def get_slate_info(request, slate_id, user=None):
                     if lock:
                         user_locks['count'] += 1
                         user_locks['salary'] += player.salary
-                    if user_player.projection != player.projection:
-                        projection['custom'] = True
 
                 except:
                     projection = {

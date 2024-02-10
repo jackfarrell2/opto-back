@@ -317,6 +317,28 @@ def add_slate(request):
     return Response({})
 
 
+@api_view(['PUT'])
+@authentication_classes([TokenAuthentication])
+def remove_projections(request):
+    try:
+        slate = Slate.objects.get(pk=int(request.data['slate-id']))
+        all_players = Player.objects.filter(slate=slate)
+        user = request.user
+        for player in all_players:
+            try:
+                player = UserPlayer.objects.get(slate=slate, user=user, meta_player=player)
+                if player:
+                    player.projection = 0
+                    player.save()
+            except:
+                player = UserPlayer.objects.create(
+                    slate=slate, user=user, meta_player=player, lock=False, remove=False, ownership=0, exposure=100, projection=0)
+        return Response({'message': 'success'})
+    except:
+        return Response({"error": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 @api_view(['GET'])
 def get_unauthenticated_slate_info(request, slate_id):
     try:
