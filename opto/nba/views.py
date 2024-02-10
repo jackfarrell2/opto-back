@@ -441,8 +441,8 @@ def unauthenticated_optimize(request):
         opto_settings['slate'] = optimization_info['slate']
         opto_settings['locks'] = optimization_info['locks']
         teams = optimization_info['teams']
-        lineups = optimize(player_data, opto_settings, teams)
-        return JsonResponse({'lineups': lineups}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
+        optimization = optimize(player_data, opto_settings, teams)
+        return JsonResponse({'lineups': optimization['lineups'], 'exposures': optimization['exposures'], 'complete': optimization['complete']}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
         error_message = f"Invalid JSON data: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)

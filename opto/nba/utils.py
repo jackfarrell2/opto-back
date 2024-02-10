@@ -13,4 +13,10 @@ player_mappings = {
     'Harry Giles': 'Harry Giles III',
     'Cam Johnson': 'Cameron Johnson',
     'Nicolas Claxton': 'Nic Claxton',
+    'C.J. McCollum': 'CJ McCollum',
+    'Kelly Oubre': 'Kelly Oubre Jr.',
+    'Trey Murphy': 'Trey Murphy III',
+    'Herb Jones': 'Herbert Jones',
+    'Patrick Baldwin': 'Patrick Baldwin Jr.',
+    'J.T. Thor': 'JT Thor'
 }

@@ -378,13 +378,13 @@ def get_slate_info(request, slate_id, user=None):
                     projection = {
                         'projection': player.projection, 'custom': False}
                     ownership = 0
-                    exposure = 0
+                    exposure = 100
                     remove = False
                     lock = False
             else:
                 projection = {'projection': player.projection, 'custom': False}
                 ownership = 0
-                exposure = 0
+                exposure = 100
                 remove = False
                 lock = False
             player_info.append({'id': player.id, 'name': player.name,
