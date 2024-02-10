@@ -74,10 +74,11 @@ def prepare_optimize(request, user=None):
         projection = float(value['projection'])
         # Store user info
         if user is not None:
-            player, created = UserPlayer.objects.update_or_create(
-                meta_player=meta_player, slate=slate, user=user, defaults={
-                    'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
-            )
+            if projection != float(meta_player.projection):
+                player, created = UserPlayer.objects.update_or_create(
+                    meta_player=meta_player, slate=slate, user=user, defaults={
+                        'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}
+                )
         if not remove:
             this_optimization_players[str(meta_player.id)] = {
                 'name': meta_player.name, 'lock': lock, 'remove': remove, 'exposure': exposure, 'ownership': ownership, 'projection': projection}

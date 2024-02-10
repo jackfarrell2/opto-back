@@ -18,5 +18,6 @@ player_mappings = {
     'Trey Murphy': 'Trey Murphy III',
     'Herb Jones': 'Herbert Jones',
     'Patrick Baldwin': 'Patrick Baldwin Jr.',
-    'J.T. Thor': 'JT Thor'
+    'J.T. Thor': 'JT Thor',
+    'Kenyon Martin': 'KJ Martin'
 }
