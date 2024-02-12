@@ -1,7 +1,7 @@
 import json
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Slate, Team, Player, Game, UserOptoSettings, UserPlayer
+from .models import Slate, Team, Player, Game, UserOptoSettings, UserPlayer, Optimization
 from rest_framework import status
 from opto.utils import format_slate
 from csv import DictReader
@@ -27,7 +27,8 @@ def get_slates(request):
         current_datetime_utc = datetime.now(timezone.utc)
         slate_cutoff = current_datetime_utc.replace(
             hour=9, minute=30, second=0, microsecond=0)
-        slate_cutoff -= timedelta(days=1)
+        if slate_cutoff.hour < 9:
+            slate_cutoff -= timedelta(days=1)
         future_slates = Slate.objects.filter(
             sport='NBA', date__gte=slate_cutoff).order_by('date')
 
@@ -363,7 +364,12 @@ def get_unauthenticated_slate_info(request, slate_id):
 def get_authenticated_slate_info(request, slate_id):
     try:
         slate_info = get_slate_info(request, slate_id, request.user)
-        return Response(slate_info)
+        slate = Slate.objects.get(pk=int(slate_id))
+        user_optimizations = Optimization.objects.filter(user=request.user, slate=slate)
+        optimizations = []
+        for optimization in user_optimizations:
+            optimizations.append({'id': optimization.id, 'lineups': optimization.lineups, 'exposures': optimization.exposures})
+        return Response({'slate-info': slate_info, 'optimizations': optimizations})
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -454,6 +460,12 @@ def authenticated_optimize(request):
         opto_settings['removed-players'] = optimization_info['removed-players']
         teams = optimization_info['teams']
         optimization = optimize(player_data, opto_settings, teams)
+        try:
+            optimization_object = Optimization.objects.create(
+                lineups=optimization['lineups'], exposures=optimization['exposures'], user=request.user, slate=optimization_info['slate'])
+            optimization_object.save()
+        except:
+            pass
         return JsonResponse({'lineups': optimization['lineups'], 'exposures': optimization['exposures'], 'complete': optimization['complete']}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
         error_message = f"Invalid JSON data: {str(e)}"

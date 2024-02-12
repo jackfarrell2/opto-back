@@ -100,3 +100,13 @@ class UserOptoSettings(models.Model):
 
     def __str__(self):
         return f"{self.user} Settings"
+
+
+class Optimization(models.Model):
+    lineups = models.JSONField()
+    exposures = models.JSONField()
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"Optimization - {self.id}"

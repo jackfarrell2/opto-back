@@ -197,9 +197,12 @@ def optimize(players, settings, teams):
         team_players_per_position = []
         for team_player in team_players:
             if str(team_player) not in removed_players:
-                for position in meta_players[str(team_player)]['positions']:
-                    team_players_per_position.append(
-                        selected_players[f"{team_player}_{position}"])
+                try:
+                    for position in meta_players[str(team_player)]['positions']:
+                        team_players_per_position.append(
+                            selected_players[f"{team_player}_{position}"])
+                except:
+                    continue
         model += lpSum(team_players_per_position) <= max_team_players
 
     # Build lineups
