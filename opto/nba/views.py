@@ -293,7 +293,7 @@ def add_slate(request):
                     position_flags[position] = True
             team = Team.objects.get(abbrev=row['TeamAbbrev'], slate=slate)
             opponent = team.opponent
-            projection = 5
+            projection = 0
 
             # Add player
             player = Player(name=row['Name'],
@@ -441,7 +441,7 @@ def user_opto_settings(request):
                         user=request.user)
                     user_opto_settings_object.save()
                 user_opto_settings = {'uniques': user_opto_settings_object.uniques, 'min-salary': user_opto_settings_object.min_salary,
-                                      'max-salary': user_opto_settings_object.max_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team, 'num-lineups': 20}
+                                      'max-salary': user_opto_settings_object.max_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team, 'num-lineups': 5}
                 return Response(user_opto_settings)
             except Exception as e:
                 error_message = f"An error occurred: {str(e)}"
