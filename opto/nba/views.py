@@ -359,6 +359,24 @@ def get_unauthenticated_slate_info(request, slate_id):
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['DELETE'])
+@authentication_classes([TokenAuthentication])
+def remove_optimizations(request):
+    try:
+        data = request.body
+        data = json.loads(data)
+        slate_id = request.data['slate-id']
+        slate = Slate.objects.get(pk=int(slate_id))
+        user = request.user
+        user_optimizations = Optimization.objects.filter(user=user, slate=slate)
+        for optimization in user_optimizations:
+            optimization.delete()
+        return Response({'message': 'success'})
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}"
+        return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 def get_authenticated_slate_info(request, slate_id):

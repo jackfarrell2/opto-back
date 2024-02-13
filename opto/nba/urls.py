@@ -12,4 +12,5 @@ urlpatterns = [
     path('api/player-settings/', views.player_settings, name='player-settings'),
     path('api/upload-projections/', views.upload_projections, name='upload-projections'),
     path('api/remove-projections/', views.remove_projections, name='remove-projections'),
+    path('api/remove-optimizations/', views.remove_optimizations, name='remove-optimizations'),
 ]

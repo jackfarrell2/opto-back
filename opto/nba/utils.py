@@ -19,5 +19,6 @@ player_mappings = {
     'Herb Jones': 'Herbert Jones',
     'Patrick Baldwin': 'Patrick Baldwin Jr.',
     'J.T. Thor': 'JT Thor',
-    'Kenyon Martin': 'KJ Martin'
+    'Kenyon Martin': 'KJ Martin',
+    'Reggie Bullock Jr': 'Reggie Bullock Jr.',
 }
