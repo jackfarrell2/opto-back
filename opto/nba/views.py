@@ -354,7 +354,7 @@ def remove_projections(request):
 def get_unauthenticated_slate_info(request, slate_id):
     try:
         slate_info = get_slate_info(request, slate_id)
-        return Response(slate_info)
+        return Response({'slate-info': slate_info})
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -388,8 +388,7 @@ def get_authenticated_slate_info(request, slate_id):
     try:
         slate_info = get_slate_info(request, slate_id, request.user)
         slate = Slate.objects.get(pk=int(slate_id))
-        user_ignores = IgnoreOpto.objects.filter(
-            user=request.user, slate=slate)
+        user_ignores = IgnoreOpto.objects.filter(slate=slate)
         ignores = [ignore.ignore_id for ignore in user_ignores]
         for ignore in user_ignores:
             ignores.append(ignore.ignore_id)
@@ -479,7 +478,6 @@ def user_opto_settings(request):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
 def cancel_optimization(request):
     try:
         data = request.body
@@ -487,10 +485,9 @@ def cancel_optimization(request):
         optimization_id = data['cancel-id']
         slate_id = data['slate-id']
         slate = Slate.objects.get(pk=int(slate_id))
-        user = request.user
         try:
             ignore = IgnoreOpto.objects.create(
-                ignore_id=optimization_id, user=user, slate=slate)
+                ignore_id=optimization_id, slate=slate)
             ignore.save()
         except:
             pass
@@ -523,8 +520,7 @@ def authenticated_optimize(request):
             optimization_object.save()
         except:
             pass
-        ignores = IgnoreOpto.objects.filter(
-            user=request.user, slate=optimization_info['slate'])
+        ignores = IgnoreOpto.objects.filter(slate=optimization_info['slate'])
         ignore_ids = [ignore.ignore_id for ignore in ignores]
         if request.data['cancelId'] in ignore_ids:
             ignore = True
@@ -547,9 +543,16 @@ def unauthenticated_optimize(request):
         opto_settings = optimization_info['opto-settings']
         opto_settings['slate'] = optimization_info['slate']
         opto_settings['locks'] = optimization_info['locks']
+        opto_settings['removed-players'] = optimization_info['removed-players']
         teams = optimization_info['teams']
         optimization = optimize(player_data, opto_settings, teams)
-        return JsonResponse({'lineups': optimization['lineups'], 'exposures': optimization['exposures'], 'complete': optimization['complete']}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
+        ignores = IgnoreOpto.objects.filter(slate=optimization_info['slate'])
+        ignore_ids = [ignore.ignore_id for ignore in ignores]
+        if request.data['cancelId'] in ignore_ids:
+            ignore = True
+        else:
+            ignore = False
+        return JsonResponse({'lineups': optimization['lineups'], 'exposures': optimization['exposures'], 'complete': optimization['complete'], 'ignore': ignore}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
     except json.JSONDecodeError as e:
         error_message = f"Invalid JSON data: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)

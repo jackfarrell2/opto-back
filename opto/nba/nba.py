@@ -69,7 +69,10 @@ def prepare_optimize(request, user=None):
         if lock:
             locks.append(str(meta_player.id))
         remove = bool(value['remove'].lower())
-        exposure = float(value['exposure'])
+        if lock:
+            exposure = float(100.0)
+        else:
+            exposure = float(value['exposure'])
         ownership = float(value['ownership'])
         projection = float(value['projection'])
         # Store user info
@@ -241,7 +244,8 @@ def optimize(players, settings, teams):
         # Get the selected players
         these_selected_players = {key.split('_')[1]: key.split(
             '_')[0] for key, value in selected_players.items() if value.value() == 1}
-        lineup_info = get_lineup_info(these_selected_players, players, general_count_tracker)
+        lineup_info = get_lineup_info(
+            these_selected_players, players, general_count_tracker)
         general_count_tracker = lineup_info['general-count-tracker']
         opto_lineups.append(these_selected_players)
         # Check for overexposed players
@@ -256,7 +260,8 @@ def optimize(players, settings, teams):
 
     exposures = {}
     for exposure_id, exposure_info in general_count_tracker.items():
-        exposures[exposure_id] = {'exposure': math.floor(((exposure_info['count'] / num_lineups) * 100)), 'player-name': exposure_info['name'], 'team': exposure_info['team'], 'count': exposure_info['count']}
+        exposures[exposure_id] = {'exposure': math.floor(((exposure_info['count'] / num_lineups) * 100)),
+                                  'player-name': exposure_info['name'], 'team': exposure_info['team'], 'count': exposure_info['count']}
     return {'lineups': lineups, 'exposures': exposures, 'complete': True}
 
 
@@ -279,9 +284,11 @@ def get_lineup_info(selected_players, player_data, general_count_tracker):
         player_in_lineup_info['opponent'] = meta_player_in_lineup.opponent
         player_in_lineup_info['dk-id'] = meta_player_in_lineup.dk_id
         if str(meta_player_in_lineup.dk_id) in general_count_tracker:
-            general_count_tracker[str(meta_player_in_lineup.dk_id)]['count'] += 1
+            general_count_tracker[str(
+                meta_player_in_lineup.dk_id)]['count'] += 1
         else:
-            general_count_tracker[str(meta_player_in_lineup.dk_id)] = {'count': 1, 'name': meta_player_in_lineup.name, 'team': meta_player_in_lineup.team.abbrev}
+            general_count_tracker[str(meta_player_in_lineup.dk_id)] = {
+                'count': 1, 'name': meta_player_in_lineup.name, 'team': meta_player_in_lineup.team.abbrev}
         lineup[position] = player_in_lineup_info
     lineup['total_salary'] = total_salary
     lineup['total_projection'] = round(total_projection, 2)

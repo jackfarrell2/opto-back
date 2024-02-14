@@ -115,7 +115,7 @@ class Optimization(models.Model):
 
 class IgnoreOpto(models.Model):
     slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True)
     ignore_id = models.CharField(max_length=10)
 
     def __str__(self):
