@@ -82,7 +82,7 @@ class UserPlayer(models.Model):
     ownership = models.DecimalField(max_digits=5, decimal_places=2)
     exposure = models.DecimalField(max_digits=5, decimal_places=2, default=100)
     projection = models.DecimalField(max_digits=5, decimal_places=2)
-    
+
     def __str__(self):
         return f"{self.meta_player} - {self.user} - {self.slate}"
 
@@ -91,7 +91,7 @@ class UserOptoSettings(models.Model):
 
     class Meta:
         verbose_name = 'User Opto Setting'
-    
+
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     max_salary = models.IntegerField(default=50000)
     min_salary = models.IntegerField(default=49000)
@@ -107,6 +107,16 @@ class Optimization(models.Model):
     exposures = models.JSONField()
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
+    ignore_id = models.CharField(max_length=10, null=True)
 
     def __str__(self):
         return f"Optimization - {self.id}"
+
+
+class IgnoreOpto(models.Model):
+    slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    ignore_id = models.CharField(max_length=10)
+
+    def __str__(self):
+        return f"Ignore - {self.ignore_id}"
