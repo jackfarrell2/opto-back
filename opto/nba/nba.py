@@ -1,3 +1,4 @@
+import pulp
 from pulp import LpMaximize, LpProblem, LpVariable, lpSum
 from .models import Slate, Game, Team, Player, UserPlayer, UserOptoSettings
 import re
@@ -8,7 +9,6 @@ from fuzzywuzzy import fuzz
 from codecs import iterdecode
 import random
 import math
-from collections import OrderedDict
 
 
 def store_opto_settings(user, slate, settings):
@@ -91,6 +91,8 @@ def prepare_optimize(request, user=None):
 
 
 def optimize(players, settings, teams):
+    # Set PuLP solver parameters to suppress output
+    pulp.LpSolverDefault.msg = False
     # User Settings
     lineups = []
     opto_lineups = []
@@ -241,6 +243,15 @@ def optimize(players, settings, teams):
         opto_count += 1
         # Solve the problem
         model.solve()
+        # Check if there was an error
+        status = model.status
+        if status != 1:
+            num_lineups = opto_count - 1
+            exposures = {}
+            for exposure_id, exposure_info in general_count_tracker.items():
+                exposures[exposure_id] = {'exposure': math.floor(
+                    ((exposure_info['count'] / num_lineups) * 100)), 'player-name': exposure_info['name'], 'team': exposure_info['team'], 'count': exposure_info['count']}
+            return {'lineups': lineups, 'exposures': exposures, 'complete': False}
         # Get the selected players
         these_selected_players = {key.split('_')[1]: key.split(
             '_')[0] for key, value in selected_players.items() if value.value() == 1}

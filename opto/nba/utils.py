@@ -21,4 +21,5 @@ player_mappings = {
     'J.T. Thor': 'JT Thor',
     'Kenyon Martin': 'KJ Martin',
     'Reggie Bullock Jr': 'Reggie Bullock Jr.',
+    'Jeenathan Williams Jr.': 'Nate Williams',
 }
