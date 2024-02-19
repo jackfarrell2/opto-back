@@ -6,7 +6,6 @@ from rest_framework import status
 from opto.utils import format_slate
 from csv import DictReader
 from codecs import iterdecode
-from backports.zoneinfo import ZoneInfo
 from datetime import datetime
 from django.core.serializers.json import DjangoJSONEncoder
 from decimal import Decimal
@@ -18,7 +17,10 @@ from fuzzywuzzy import fuzz
 from .utils import player_mappings
 import openpyxl
 from datetime import datetime, timedelta, timezone
-import pytz
+try:
+    import zoneinfo
+except ImportError:
+    from backports import zoneinfo
 
 
 @api_view(['GET'])
@@ -256,7 +258,7 @@ def add_slate(request):
         earliest_game = sorted(game_times)[0]
         earliest_game = earliest_game[:-3]  # Strip time zone
         earliest_game = datetime.strptime(earliest_game, '%m/%d/%Y %I:%M%p')
-        EDT = ZoneInfo('US/Eastern')  # Avoid naive datetime
+        EDT = zoneinfo('US/Eastern')  # Avoid naive datetime
         earliest_game = earliest_game.replace(tzinfo=EDT)
         # Create slate
         slate = Slate(date=earliest_game, game_count=game_count, sport='NBA')
