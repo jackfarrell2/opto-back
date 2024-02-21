@@ -6,6 +6,9 @@ class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+    is_confirmed = models.BooleanField(default=False)
+    confirmation_code = models.CharField(max_length=64, blank=True, null=True)
+    confirmation_code_created_at = models.DateTimeField(blank=True, null=True)
 
     groups = models.ManyToManyField(
         'auth.Group',

@@ -310,8 +310,12 @@ def update_default_projections(slate, projections):
     # Accept csv
     csv = DictReader(iterdecode(projections, 'utf-8'))
     this_slate = Slate.objects.get(pk=slate)  # Set slate
-    # Pattern match names that don't match
     all_players = Player.objects.filter(slate=this_slate)
+    # Reset projections
+    for player in all_players:
+        player.projection = 0
+        player.save()
+    # Pattern match names that don't match
     for row in csv:
         player_name = row['Player']
         try:
