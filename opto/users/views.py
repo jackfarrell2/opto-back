@@ -28,13 +28,38 @@ def login(request):
     user = authenticate(request, email=email, password=password)
 
     if user is not None:
+        if not user.is_confirmed:
+            return Response({'detail': 'Please confirm your email before logging in'}, status=status.HTTP_400_BAD_REQUEST)
         token, created = Token.objects.get_or_create(user=user)
         serializer = UserSerializer(instance=user)
         serializer_data = serializer.data
         serializer_data['isStaff'] = user.is_staff
-        return Response({'token': token.key, 'user': serializer_data})
+        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}})
     else:
         return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+
+@api_view(['POST'])
+def resend_code(request):
+    try:
+        user = User.objects.get(email=request.data.get('email', ''))
+        email = user.email
+        new_confirmation_code = get_random_string(length=8)
+        user.password_reset_code = new_confirmation_code
+        user.password_reset_code_created_at = timezone.now()
+        user.save()
+        subject = 'Password reset request'
+        body = f'Hi {user.first_name},\n\nWe received a request to reset your password. Use the confirmation code below to reset your password.\n\nConfirmation code: {new_confirmation_code}\n\nIf you did not request a password reset, please ignore this email or contact us at support@dfsopto.com.\n\nBest,\nDFS Opto Team'
+        send_mail(
+            subject,
+            body,
+            'no-reply@dfsopto.com',
+            [email],
+            fail_silently=False,
+        )
+        return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
+    except:
+        return Response({'detail': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
@@ -49,12 +74,12 @@ def resend_confirmation(request):
         user.confirmation_code_created_at = timezone.now()
         user.save()
         subject = 'Welcome to DFS Opto! Confirm your email!'
-        body = f'Hi {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://localhost:3000/activate/{new_confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest regards,\nDFS Opto Team'
+        body = f'Hi {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://dfsopto.com/activate/{new_confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest regards,\nDFS Opto Team'
         send_mail(
             subject,
             body,
             'no-reply@dfsopto.com',  # From email
-            ['jackfarrell860@gmail.com'],  # To email
+            [email],  # To email
             fail_silently=False,
         )
         return Response({'detail': 'Confirmation email sent'}, status=status.HTTP_200_OK)
@@ -103,7 +128,7 @@ def reset_password_request(request):
             subject,
             body,
             'no-reply@dfsopto.com',
-            ['jackfarrell860@gmail.com'],
+            [email],
             fail_silently=False,
         )
         return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
@@ -162,21 +187,23 @@ def signup(request):
         
         # Create email info
         subject = 'Welcome to DFS Opto! Confirm your email!'
-        body = f'Hi {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://localhost:3000/activate/{confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest,\nDFS Opto Team'
+        body = f'Hi {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://dfsopto.com/activate/{confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest,\nDFS Opto Team'
 
         # Send email
         send_mail(
             subject,
             body,
             'no-reply@dfsopto.com',  # From email
-            ['jackfarrell860@gmail.com'],  # To email
+            [email],  # To email
             fail_silently=False,
         )
 
         # Creating and returning the authentication token
         token = Token.objects.create(user=user)
         serializer = UserSerializer(instance=user)
-        return Response({'token': token.key, 'user': serializer.data}, status=status.HTTP_201_CREATED)
+        serializer_data = serializer.data
+        serializer_data['isStaff'] = user.is_staff
+        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}}, status=status.HTTP_201_CREATED)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -194,7 +221,10 @@ def confirm_email(request, token):
     user.save()
     token, created = Token.objects.get_or_create(user=user)
     serializer = UserSerializer(instance=user)
-    return Response({'token': token.key, 'user': serializer.data}, status=status.HTTP_200_OK)
+    serializer_data = serializer.data
+    serializer_data['isStaff'] = user.is_staff
+    return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}}, status=status.HTTP_200_OK)
+
 
 
 @api_view(['GET'])
@@ -212,7 +242,7 @@ def confirm_password_reset(request, token):
         serializer = UserSerializer(instance=user)
         serializer_data = serializer.data
         serializer_data['isStaff'] = user.is_staff
-        return Response({'token': token.key, 'user': serializer_data})
+        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}}, status=status.HTTP_200_OK)
     except:
         return Response({'detail': 'Invalid code, please try again'}, status=status.HTTP_400_BAD_REQUEST)
 
