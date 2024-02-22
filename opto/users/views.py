@@ -38,6 +38,81 @@ def login(request):
 
 
 @api_view(['POST'])
+def resend_confirmation(request):
+    try:
+        user = User.objects.get(email=request.data.get('email', ''))
+        if user.is_confirmed:
+            return Response({'detail': 'User already confirmed'}, status=status.HTTP_400_BAD_REQUEST)
+        email = user.email
+        new_confirmation_code = get_random_string(length=64)
+        user.confirmation_code = new_confirmation_code
+        user.confirmation_code_created_at = timezone.now()
+        user.save()
+        subject = 'Welcome to DFS Opto! Confirm your email!'
+        body = f'Hi {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://localhost:3000/activate/{new_confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest regards,\nDFS Opto Team'
+        send_mail(
+            subject,
+            body,
+            'no-reply@dfsopto.com',  # From email
+            ['jackfarrell860@gmail.com'],  # To email
+            fail_silently=False,
+        )
+        return Response({'detail': 'Confirmation email sent'}, status=status.HTTP_200_OK)
+
+    except User.DoesNotExist:
+        return Response({'detail': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT'])
+@authentication_classes([TokenAuthentication])
+def reset_password(request):
+    try:
+        user = request.user
+        new_password = request.data.get('newPassword', '')
+        confirmed_password = request.data.get('confirmedPassword', '')
+        if new_password != confirmed_password:
+            return Response({'detail': 'Passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(new_password) < 8:
+            return Response({'detail': 'Password must be at least 8 characters long'}, status=status.HTTP_400_BAD_REQUEST)
+        if not re.search("[a-z]", new_password):
+            return Response({'detail': 'Password must contain at least one lowercase letter'}, status=status.HTTP_400_BAD_REQUEST)
+        if not re.search("[A-Z]", new_password):
+            return Response({'detail': 'Password must contain at least one uppercase letter'}, status=status.HTTP_400_BAD_REQUEST)
+        if not re.search("[0-9]", new_password):
+            return Response({'detail': 'Password must contain at least one number'}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(new_password)
+        user.save()
+        return Response({'detail': 'Password reset successfully'}, status=status.HTTP_200_OK)
+    except:
+        return Response({'detail': 'There was an error resetting your password'}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+@api_view(['POST'])
+def reset_password_request(request):
+    try:
+        user = User.objects.get(email=request.data.get('email', ''))
+        email = user.email
+        new_password_code = get_random_string(length=8)
+        user.password_reset_code = new_password_code
+        user.password_reset_code_created_at = timezone.now()
+        user.save()
+        subject = 'Password reset request'
+        body = f'Hi {user.first_name},\n\nWe received a request to reset your password. Use the confirmation code below to reset your password.\n\nConfirmation code: {new_password_code}\n\nIf you did not request a password reset, please ignore this email or contact us at support@dfsopto.com.\n\nBest,\nDFS Opto Team'
+        send_mail(
+            subject,
+            body,
+            'no-reply@dfsopto.com',
+            ['jackfarrell860@gmail.com'],
+            fail_silently=False,
+        )
+        return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
+
+    except User.DoesNotExist:
+        return Response({'detail': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
 def signup(request):
     serializer = UserSerializer(data=request.data)
 
@@ -57,6 +132,9 @@ def signup(request):
         
         if not re.search("[A-Z]", password):
             return Response({"error": "Password must contain at least one uppercase letter."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not re.search("[0-9]", password):
+            return Response({"error": "Password must contain at least one number."}, status=status.HTTP_400_BAD_REQUEST)
         
         # Validate Email
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
@@ -83,10 +161,10 @@ def signup(request):
         )
         
         # Create email info
-        subject = 'Welcome to DFS Opto! Please confirm your email address.'
-        body = f'Dear {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://localhost:3000/activate/{confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest regards,\nDFS Opto Team'
+        subject = 'Welcome to DFS Opto! Confirm your email!'
+        body = f'Hi {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://localhost:3000/activate/{confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest,\nDFS Opto Team'
 
-        # Send dummy email
+        # Send email
         send_mail(
             subject,
             body,
@@ -94,7 +172,6 @@ def signup(request):
             ['jackfarrell860@gmail.com'],  # To email
             fail_silently=False,
         )
-
 
         # Creating and returning the authentication token
         token = Token.objects.create(user=user)
@@ -119,6 +196,25 @@ def confirm_email(request, token):
     serializer = UserSerializer(instance=user)
     return Response({'token': token.key, 'user': serializer.data}, status=status.HTTP_200_OK)
 
+
+@api_view(['GET'])
+def confirm_password_reset(request, token):
+    try:
+        user = get_object_or_404(User, password_reset_code=token)
+        if user.password_reset_code_created_at:
+            time_elapsed = timezone.now() - user.password_reset_code_created_at
+            if time_elapsed > timedelta(hours=24):
+                return Response({'detail': 'Code expired, please try again'}, status=status.HTTP_400_BAD_REQUEST)
+        user.password_reset_code = ''
+        user.password_reset_code_created_at = None
+        user.save()
+        token, created = Token.objects.get_or_create(user=user)
+        serializer = UserSerializer(instance=user)
+        serializer_data = serializer.data
+        serializer_data['isStaff'] = user.is_staff
+        return Response({'token': token.key, 'user': serializer_data})
+    except:
+        return Response({'detail': 'Invalid code, please try again'}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])

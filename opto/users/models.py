@@ -9,6 +9,8 @@ class CustomUser(AbstractUser):
     is_confirmed = models.BooleanField(default=False)
     confirmation_code = models.CharField(max_length=64, blank=True, null=True)
     confirmation_code_created_at = models.DateTimeField(blank=True, null=True)
+    password_reset_code = models.CharField(max_length=10, blank=True, null=True)
+    password_reset_code_created_at = models.DateTimeField(blank=True, null=True)
 
     groups = models.ManyToManyField(
         'auth.Group',
