@@ -16,7 +16,6 @@ from django.utils import timezone
 from datetime import timedelta
 
 
-
 User = get_user_model()
 
 
@@ -37,7 +36,7 @@ def login(request):
         return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}})
     else:
         return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-    
+
 
 @api_view(['POST'])
 def resend_code(request):
@@ -110,7 +109,6 @@ def reset_password(request):
         return Response({'detail': 'Password reset successfully'}, status=status.HTTP_200_OK)
     except:
         return Response({'detail': 'There was an error resetting your password'}, status=status.HTTP_400_BAD_REQUEST)
-        
 
 
 @api_view(['POST'])
@@ -151,20 +149,20 @@ def signup(request):
         # Validate password
         if len(password) < 8:
             return Response({"error": "Password must be at least 8 characters long."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         if not re.search("[a-z]", password):
             return Response({"error": "Password must contain at least one lowercase letter."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         if not re.search("[A-Z]", password):
             return Response({"error": "Password must contain at least one uppercase letter."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         if not re.search("[0-9]", password):
             return Response({"error": "Password must contain at least one number."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Validate Email
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             return Response({"error": "Invalid email."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Validate Names
         if first_name == '' or last_name == '':
             return Response({"error": "First and last name are required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -184,7 +182,7 @@ def signup(request):
             confirmation_code=confirmation_code,
             confirmation_code_created_at=confirmation_code_created_at
         )
-        
+
         # Create email info
         subject = 'Welcome to DFS Opto! Confirm your email!'
         body = f'Hi {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://dfsopto.com/activate/{confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest,\nDFS Opto Team'
@@ -226,7 +224,6 @@ def confirm_email(request, token):
     return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}}, status=status.HTTP_200_OK)
 
 
-
 @api_view(['GET'])
 def confirm_password_reset(request, token):
     try:
@@ -245,6 +242,7 @@ def confirm_password_reset(request, token):
         return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}}, status=status.HTTP_200_OK)
     except:
         return Response({'detail': 'Invalid code, please try again'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])

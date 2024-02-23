@@ -18,9 +18,9 @@ from .utils import player_mappings
 import openpyxl
 from datetime import datetime, timedelta, timezone
 try:
-    import zoneinfo
+    from zoneinfo import ZoneInfo
 except ImportError:
-    from backports import zoneinfo
+    from backports.zoneinfo import ZoneInfo
 
 
 @api_view(['GET'])
@@ -258,7 +258,7 @@ def add_slate(request):
         earliest_game = sorted(game_times)[0]
         earliest_game = earliest_game[:-3]  # Strip time zone
         earliest_game = datetime.strptime(earliest_game, '%m/%d/%Y %I:%M%p')
-        EDT = zoneinfo('US/Eastern')  # Avoid naive datetime
+        EDT = ZoneInfo('America/New_York')  # Avoid naive datetime
         earliest_game = earliest_game.replace(tzinfo=EDT)
         # Create slate
         slate = Slate(date=earliest_game, game_count=game_count, sport='NBA')

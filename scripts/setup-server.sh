@@ -92,7 +92,7 @@ ssh root@$SERVER /bin/bash << EOF
     
 
     echo -e "\n>>> Starting Supervisord"
-    supervisord -c config/supervisord.conf
+    supervisord -c /app/config/supervisord.conf
 
 EOF
 

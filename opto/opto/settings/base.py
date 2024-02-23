@@ -12,9 +12,12 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 
 from pathlib import Path
 import os
+import sys
+PASS_BASE_DIR = Path(__file__).resolve().parent.parent
+PASS_PARENT_DIR = PASS_BASE_DIR.parent.parent
+sys.path.append(str(PASS_PARENT_DIR))
+import email_info  # noqa
 
-# BASE_DIR = os.path.dirname(os.path.dirname(
-#     os.path.dirname(os.path.abspath(__file__))))
 BASE_DIR = os.path.dirname(Path(__file__).resolve().parent.parent)
 
 
@@ -56,8 +59,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ["NO_REPLY_DFS_OPTO_EMAIL"]
-EMAIL_HOST_PASSWORD = os.environ["NO_REPLY_DFS_OPTO_PASS"]
+EMAIL_HOST_USER = email_info.NO_REPLY_DFS_OPTO_EMAIL
+EMAIL_HOST_PASSWORD = email_info.NO_REPLY_DFS_OPTO_PASS
 
 ROOT_URLCONF = 'opto.urls'
 
