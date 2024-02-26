@@ -23,3 +23,8 @@ player_mappings = {
     'Reggie Bullock Jr': 'Reggie Bullock Jr.',
     'Jeenathan Williams Jr.': 'Nate Williams',
 }
+
+banned_mappings = {
+    'Nikola Jokic': 'Nikola Jovic',
+    'Nikola Jovic': 'Nikola Jokic',
+}

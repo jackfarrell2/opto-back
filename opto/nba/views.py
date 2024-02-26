@@ -14,7 +14,7 @@ from nba.nba import prepare_optimize, get_slate_info, optimize, update_default_p
 from rest_framework.decorators import authentication_classes
 from rest_framework.authentication import TokenAuthentication
 from fuzzywuzzy import fuzz
-from .utils import player_mappings
+from .utils import player_mappings, banned_mappings
 import openpyxl
 from datetime import datetime, timedelta, timezone
 try:
@@ -146,6 +146,9 @@ def upload_projections(request):
                     if ratio > 85:
                         # Store sudo match
                         meta_player = each_player
+                        if player_name in banned_mappings:
+                            if each_player.name == banned_mappings[player_name]:
+                                continue
                         try:
                             # Check if there is already a user player
                             player = UserPlayer.objects.get(
@@ -180,6 +183,9 @@ def upload_projections(request):
                     # # Store sudo match
                     if ratio > 75 and partial_ratio > 85:
                         meta_player = each_player
+                        if player_name in banned_mappings:
+                            if each_player.name == banned_mappings[player_name]:
+                                continue
                         try:
                             # Check if there is already a user player
                             player = UserPlayer.objects.get(
