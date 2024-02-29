@@ -24,7 +24,6 @@ echo -e "\n>>> Cleaning up deployed files on the server."
 ssh root@$SERVER /bin/bash << EOF
     set -e
     find /root/deploy -name *.pyc -delete
-    find /root/deploy -name __pycache__ -delete
     find /root/deploy -type f -print0 | xargs -0 dos2unix
 EOF
 
