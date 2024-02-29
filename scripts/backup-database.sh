@@ -8,11 +8,11 @@ then
 fi
 echo -e "\n>>> Backing up database on $SERVER"
 TIME=$(date "+%s")
-DBNAME="db.$TIME.sqlite3"
+DBNAME="db.$TIME.tar"
 ssh root@$SERVER /bin/bash << EOF
 set -e
 mkdir -p /root/backups/
-cp /app/db.sqlite3 /root/backups/$DBNAME
+pg_dump -U root -F t optoprod2 > /root/backups/$DBNAME
 EOF
 mkdir -p ~/backups/opto
 scp root@optoback:/root/backups/* ~/backups/opto

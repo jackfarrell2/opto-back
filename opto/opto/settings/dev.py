@@ -14,3 +14,10 @@ CORS_ALLOWED_ORIGINS = [
     'https://www.dfsopto.com',
     'http://192.168.1.164:8080',
 ]
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(PARENT_DIR, 'db.sqlite3'),
+    }
+}
