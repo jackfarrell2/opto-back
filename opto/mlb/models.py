@@ -77,7 +77,8 @@ class UserPlayer(models.Model):
 
     meta_player = models.ForeignKey(Player, on_delete=models.CASCADE)
     slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name='user_mlb_players')
     lock = models.BooleanField(default=False)
     remove = models.BooleanField(default=False)
     ownership = models.DecimalField(max_digits=5, decimal_places=2)
@@ -93,7 +94,8 @@ class UserOptoSettings(models.Model):
     class Meta:
         verbose_name = 'User Opto Setting'
 
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name='user_mlb_opto_settings')
     max_salary = models.IntegerField(default=50000)
     min_salary = models.IntegerField(default=49000)
     max_players_per_team = models.IntegerField(default=5)
@@ -106,7 +108,8 @@ class UserOptoSettings(models.Model):
 class Optimization(models.Model):
     lineups = models.JSONField()
     exposures = models.JSONField()
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name='user_mlb_opto')
     slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
 
     def __str__(self):
