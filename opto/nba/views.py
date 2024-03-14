@@ -1,16 +1,13 @@
 import json
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Slate, Team, Player, Game, UserOptoSettings, UserPlayer, Optimization, IgnoreOpto
+from .models import Slate, Team, Player, Game, UserOptoSettings, UserPlayer, Optimization
 from rest_framework import status
 from opto.utils import format_slate
 from csv import DictReader
 from codecs import iterdecode
 from datetime import datetime
-from django.core.serializers.json import DjangoJSONEncoder
-from decimal import Decimal
-from django.http import JsonResponse
-from nba.nba import prepare_optimize, get_slate_info, optimize, update_default_projections, randomize_within_percentage
+from nba.nba import get_slate_info, update_default_projections, randomize_within_percentage
 from rest_framework.decorators import authentication_classes
 from rest_framework.authentication import TokenAuthentication
 from fuzzywuzzy import fuzz
@@ -381,9 +378,6 @@ def remove_optimizations(request):
             user=user, slate=slate)
         for optimization in user_optimizations:
             optimization.delete()
-        user_ignores = IgnoreOpto.objects.filter(user=user, slate=slate)
-        for ignore in user_ignores:
-            ignore.delete()
         return Response({'message': 'success'})
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
@@ -396,12 +390,8 @@ def get_authenticated_slate_info(request, slate_id):
     try:
         slate_info = get_slate_info(request, slate_id, request.user)
         slate = Slate.objects.get(pk=int(slate_id))
-        user_ignores = IgnoreOpto.objects.filter(slate=slate)
-        ignores = [ignore.ignore_id for ignore in user_ignores]
-        for ignore in user_ignores:
-            ignores.append(ignore.ignore_id)
         user_optimizations = Optimization.objects.filter(
-            user=request.user, slate=slate).exclude(ignore_id__in=ignores)
+            user=request.user, slate=slate)
         optimizations = []
         for optimization in user_optimizations:
             optimizations.append(
@@ -486,91 +476,21 @@ def user_opto_settings(request):
 
 
 @api_view(['POST'])
-def cancel_optimization(request):
-    try:
-        data = request.body
-        data = json.loads(data)
-        optimization_id = data['cancel-id']
-        slate_id = data['slate-id']
-        slate = Slate.objects.get(pk=int(slate_id))
-        try:
-            ignore = IgnoreOpto.objects.create(
-                ignore_id=optimization_id, slate=slate)
-            ignore.save()
-        except:
-            pass
-        try:
-            optimization = Optimization.objects.get(ignore_id=optimization_id)
-            optimization.delete()
-        except:
-            pass
-        return Response({'message': 'success'})
-    except Exception as e:
-        error_message = f"An error occurred: {str(e)}"
-        return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 def authenticated_optimize(request):
     try:
-        optimization_info = prepare_optimize(request, request.user)
-        player_data = optimization_info['players']
-        opto_settings = optimization_info['opto-settings']
-        opto_settings['slate'] = optimization_info['slate']
-        opto_settings['locks'] = optimization_info['locks']
-        opto_settings['removed-players'] = optimization_info['removed-players']
-        teams = optimization_info['teams']
-        optimization = optimize(player_data, opto_settings, teams)
-        try:
-            optimization_object = Optimization.objects.create(
-                lineups=optimization['lineups'], exposures=optimization['exposures'], user=request.user, slate=optimization_info['slate'], ignore_id=request.data['cancelId'])
-            optimization_object.save()
-        except:
-            pass
-        ignores = IgnoreOpto.objects.filter(slate=optimization_info['slate'])
-        ignore_ids = [ignore.ignore_id for ignore in ignores]
-        if request.data['cancelId'] in ignore_ids:
-            ignore = True
-        else:
-            ignore = False
-        return JsonResponse({'lineups': optimization['lineups'], 'exposures': optimization['exposures'], 'complete': optimization['complete'], 'ignore': ignore}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
+        lineups = request.data['lineups']
+        slate = request.data['slate']
+        slate = Slate.objects.get(pk=int(slate))
+        user = request.user
+        exposures = request.data['exposures']
+        optimization_object = Optimization.objects.create(
+            lineups=lineups, exposures=exposures, user=request.user, slate=slate)
+        optimization_object.save()
+        return Response({'message': 'success'})
     except json.JSONDecodeError as e:
         error_message = f"Invalid JSON data: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['POST'])
-def unauthenticated_optimize(request):
-    try:
-        optimization_info = prepare_optimize(request)
-        player_data = optimization_info['players']
-        opto_settings = optimization_info['opto-settings']
-        opto_settings['slate'] = optimization_info['slate']
-        opto_settings['locks'] = optimization_info['locks']
-        opto_settings['removed-players'] = optimization_info['removed-players']
-        teams = optimization_info['teams']
-        optimization = optimize(player_data, opto_settings, teams)
-        ignores = IgnoreOpto.objects.filter(slate=optimization_info['slate'])
-        ignore_ids = [ignore.ignore_id for ignore in ignores]
-        if request.data['cancelId'] in ignore_ids:
-            ignore = True
-        else:
-            ignore = False
-        return JsonResponse({'lineups': optimization['lineups'], 'exposures': optimization['exposures'], 'complete': optimization['complete'], 'ignore': ignore}, status=status.HTTP_200_OK, encoder=DecimalEncoder)
-    except json.JSONDecodeError as e:
-        error_message = f"Invalid JSON data: {str(e)}"
-        return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        error_message = f"An error occurred: {str(e)}"
-        return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class DecimalEncoder(DjangoJSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return super().default(obj)

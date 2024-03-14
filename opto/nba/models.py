@@ -107,16 +107,6 @@ class Optimization(models.Model):
     exposures = models.JSONField()
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
-    ignore_id = models.CharField(max_length=10, null=True)
 
     def __str__(self):
         return f"Optimization - {self.id}"
-
-
-class IgnoreOpto(models.Model):
-    slate = models.ForeignKey(Slate, on_delete=models.CASCADE)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True)
-    ignore_id = models.CharField(max_length=10)
-
-    def __str__(self):
-        return f"Ignore - {self.ignore_id}"
