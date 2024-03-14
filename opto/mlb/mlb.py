@@ -107,7 +107,7 @@ def get_slate_info(request, slate_id, user=None):
         user_locks = {'count': 0, 'salary': 0}
         for player in players:
             eligible_positions = ['UTIL']
-            positions = ['F', 'C', 'G', 'SG', 'PG', 'SF', 'PF']
+            positions = ['P', 'C', 'FB', 'SB', 'TB', 'SS', 'OF']
             for position in positions:
                 if getattr(player, position):
                     eligible_positions.append(position)
