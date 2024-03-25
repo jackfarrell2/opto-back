@@ -26,9 +26,6 @@ def get_slates(request):
         current_datetime_utc = datetime.now(timezone.utc)
         slate_cutoff = current_datetime_utc.replace(
             hour=6, minute=0, second=0, microsecond=0)
-        if current_datetime_utc > slate_cutoff:
-            slate_cutoff -= timedelta(days=1)
-        slate_cutoff -= timedelta(hours=9)
         future_slates = Slate.objects.filter(
             sport='MLB', date__gte=slate_cutoff).order_by('date')
 
