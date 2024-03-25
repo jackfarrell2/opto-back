@@ -12,7 +12,8 @@ def store_opto_settings(user, slate, settings):
             'uniques': settings['uniques'],
             'max_salary': settings['maxSalary'],
             'min_salary': settings['minSalary'],
-            'max_players_per_team': settings['maxTeamPlayers']
+            'max_players_per_team': settings['maxTeamPlayers'],
+            'hittersVsPitcher': settings['hittersVsPitcher'],
         }
     )
 

@@ -1,7 +1,10 @@
 player_mappings = {
-    'Derek Jeets': 'Derek Jeter',
+    'Luis Robert': 'Luis Robert Jr.',
+    'Albert Almora': 'Albert Almora Jr.',
+    'Lourdes Gurriel': 'Lourdes Gurriel Jr.',
+    'Joshua Rojas': 'Josh Rojas',
 }
 
 banned_mappings = {
-    'Derek Jeter': 'Demek Jeter',
+    'Johan Rojas': 'Josh Rojas',
 }

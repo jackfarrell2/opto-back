@@ -25,9 +25,10 @@ def get_slates(request):
     try:
         current_datetime_utc = datetime.now(timezone.utc)
         slate_cutoff = current_datetime_utc.replace(
-            hour=9, minute=30, second=0, microsecond=0)
-        if slate_cutoff.hour < 9:
+            hour=6, minute=0, second=0, microsecond=0)
+        if current_datetime_utc > slate_cutoff:
             slate_cutoff -= timedelta(days=1)
+        slate_cutoff -= timedelta(hours=9)
         future_slates = Slate.objects.filter(
             sport='MLB', date__gte=slate_cutoff).order_by('date')
 
@@ -449,7 +450,7 @@ def user_opto_settings(request):
                         user=request.user)
                     user_opto_settings_object.save()
                 user_opto_settings = {'uniques': user_opto_settings_object.uniques, 'min-salary': user_opto_settings_object.min_salary,
-                                      'max-salary': user_opto_settings_object.max_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team, 'num-lineups': 20}
+                                      'max-salary': user_opto_settings_object.max_salary, 'max-players-per-team': user_opto_settings_object.max_players_per_team, 'num-lineups': 20, 'hittersVsPitcher': user_opto_settings_object.hittersVsPitcher}
                 return Response(user_opto_settings)
             except Exception as e:
                 error_message = f"An error occurred: {str(e)}"
@@ -464,6 +465,7 @@ def user_opto_settings(request):
                 user_opto_settings_object.min_salary = data['min-salary']
                 user_opto_settings_object.max_salary = data['max-salary']
                 user_opto_settings_object.max_players_per_team = data['max-players-per-team']
+                user_opto_settings_object.hittersVsPitcher = data['hittersVsPitcher']
                 user_opto_settings_object.save()
                 return Response({"message": "User settings updated successfully"}, status=status.HTTP_200_OK)
             except Exception as e:

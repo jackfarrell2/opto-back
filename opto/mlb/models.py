@@ -100,6 +100,7 @@ class UserOptoSettings(models.Model):
     min_salary = models.IntegerField(default=49000)
     max_players_per_team = models.IntegerField(default=5)
     uniques = models.IntegerField(default=3)
+    hittersVsPitcher = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.user} Settings"
