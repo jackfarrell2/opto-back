@@ -1,10 +1,22 @@
 player_mappings = {
-    'Luis Robert': 'Luis Robert Jr.',
-    'Albert Almora': 'Albert Almora Jr.',
-    'Lourdes Gurriel': 'Lourdes Gurriel Jr.',
-    'Joshua Rojas': 'Josh Rojas',
+    'Gardner Minshew': 'Gardner Minshew II',
+    'Travis Etienne': 'Travis Etienne Jr.',
+    'Kenneth Walker': 'Kenneth Walker III',
+    'D.J. Moore': 'DJ Moore',
+    'Demario Douglas': 'DeMario Douglas',
+    'Marvin Mims': 'Marvin Mims Jr.',
+    'Ray-Ray McCloud': 'Ray-Ray McCloud III',
+    'Scott Miller': 'Scotty Miller',
+    'John Metchie': 'John Metchie III',
+    'Cedrick Wilson': 'Cedrick Wilson Jr.',
+    'Velus Jones': 'Velus Jones Jr.',
+    'Andrew Ogletree': 'Drew Ogletree',
+
+
 }
 
 banned_mappings = {
-    'Johan Rojas': 'Josh Rojas',
+    'Brian Robinson': 'Bijan Robinson',
+    'A.J. Brown': 'Browns',
+    'Bijan Robinson': 'Brian Robinson',
 }

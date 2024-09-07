@@ -32,7 +32,7 @@ def randomize_within_percentage(number, percentage):
 
 def update_default_projections(slate, projections):
     # Accept csv
-    csv = DictReader(iterdecode(projections, 'utf-8'))
+    csv = DictReader(iterdecode(projections, 'utf-8-sig'))
     this_slate = Slate.objects.get(pk=slate)  # Set slate
     all_players = Player.objects.filter(slate=this_slate)
     # Reset projections
