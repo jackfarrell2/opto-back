@@ -181,7 +181,7 @@ def upload_projections(request):
                     if ratio > 75 and partial_ratio > 85:
                         meta_player = each_player
                         if player_name in banned_mappings:
-                            if each_player.name == banned_mappings[player_name]:
+                            if each_player.name.strip() == banned_mappings[player_name].strip():
                                 continue
                         try:
                             # Check if there is already a user player
