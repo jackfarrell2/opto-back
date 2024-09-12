@@ -23,4 +23,5 @@ banned_mappings = {
     'Brian Robinson': 'Bijan Robinson',
     'A.J. Brown': 'Browns',
     'Bijan Robinson': 'Brian Robinson',
+    'Browns': 'A.J. Brown',
 }
