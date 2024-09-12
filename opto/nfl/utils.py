@@ -11,6 +11,10 @@ player_mappings = {
     'Cedrick Wilson': 'Cedrick Wilson Jr.',
     'Velus Jones': 'Velus Jones Jr.',
     'Andrew Ogletree': 'Drew Ogletree',
+    'Deebo Samuel': 'Deebo Samuel Sr.',
+    'Tyrone Tracy': 'Tyrone Tracy Jr.',
+    'Ty Johnson': 'Tyler Johnson',
+    'Trent Sherfield': 'Trent Sherfield Sr.',
 
 
 }
