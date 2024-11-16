@@ -72,6 +72,7 @@ def upload_projections(request):
             paste_projections = request.data['paste-projections']
             projections = json.loads(paste_projections)
         # need to potentially update projections for all slates within the same day (not necessarily the same 24 hours, also need to consider double headers)
+        test = 2
         slate = Slate.objects.get(id=int(request.data['slate']))
         user = request.user
         all_players = Player.objects.filter(slate=slate)
