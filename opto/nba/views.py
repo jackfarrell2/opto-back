@@ -55,6 +55,7 @@ def upload_projections(request):
     if method != 'file' and method != 'paste':
         return Response({"error": "Invalid method"}, status=status.HTTP_400_BAD_REQUEST)
     try:
+        # File Upload
         if method == 'file':
             # Get uploaded csv file
             slate_file = request.FILES.get('file')
@@ -71,8 +72,6 @@ def upload_projections(request):
         elif method == 'paste':
             paste_projections = request.data['paste-projections']
             projections = json.loads(paste_projections)
-        # need to potentially update projections for all slates within the same day (not necessarily the same 24 hours, also need to consider double headers)
-        test = 2
         slate = Slate.objects.get(id=int(request.data['slate']))
         user = request.user
         all_players = Player.objects.filter(slate=slate)
@@ -83,7 +82,7 @@ def upload_projections(request):
             all_player_data = csv
         elif method == 'paste':
             all_player_data = projections
-            if len(all_player_data) > 1000:
+            if len(all_player_data) > 2000:
                 return Response({"error": "File too large"}, status=status.HTTP_400_BAD_REQUEST)
         # Gather player info
         for row in all_player_data:
@@ -220,6 +219,8 @@ def add_slate(request):
         if request.data['projections-only'] == 'true':
             default_projections = request.FILES['file-two']
             slate = Slate.objects.get(pk=int(request.data['slate']))
+            date = Slate.date
+            # find slates with similar dates
             update_default_projections(slate.id, default_projections)
             for player in Player.objects.filter(slate=slate):
                 new_num = randomize_within_percentage(
