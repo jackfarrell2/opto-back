@@ -219,7 +219,9 @@ def add_slate(request):
         if request.data['projections-only'] == 'true':
             default_projections = request.FILES['file-two']
             slate = Slate.objects.get(pk=int(request.data['slate']))
-            date = Slate.date
+            filter_date = slate.date.date()
+            same_date_slates = Slate.objects.filter(
+                date__date=filter_date).exclude(id=slate.id)
             # find slates with similar dates
             update_default_projections(slate.id, default_projections)
             for player in Player.objects.filter(slate=slate):
