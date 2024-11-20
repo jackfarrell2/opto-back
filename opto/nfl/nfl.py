@@ -88,6 +88,11 @@ def update_default_projections(slate, projections):
         # Store perfect match
         player.projection = row['Proj']
         player.save()
+    for player in Player.objects.filter(slate=slate):
+        new_num = randomize_within_percentage(
+            float(player.projection), 7.5)
+        player.projection = new_num
+        player.save()
     return True
 
 
@@ -155,6 +160,3 @@ def get_slate_info(request, slate_id, user=None):
         return serialized_data
     except:
         return None
-    
-
-
