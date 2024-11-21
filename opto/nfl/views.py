@@ -222,6 +222,7 @@ def add_slate(request):
             same_date_slates = Slate.objects.filter(
                 date__date=filter_date).exclude(id=slate.id)
             update_default_projections(slate.id, default_projections)
+            # only for nfl
             for other_slate in same_date_slates:
                 update_default_projections(other_slate.id, default_projections)
             for player in Player.objects.filter(slate=slate):
