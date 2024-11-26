@@ -22,9 +22,12 @@ player_mappings = {
     'Kenyon Martin': 'KJ Martin',
     'Reggie Bullock Jr': 'Reggie Bullock Jr.',
     'Jeenathan Williams Jr.': 'Nate Williams',
+    'Bub Carrington': 'Carlton Carrington',
 }
 
 banned_mappings = {
     'Nikola Jokic': 'Nikola Jovic',
     'Nikola Jovic': 'Nikola Jokic',
+    'Keon Johnson': 'Jalen Johnson',
+    'Jalen Johnson': 'Keon Johnson',
 }
