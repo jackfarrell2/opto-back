@@ -24,4 +24,13 @@ banned_mappings = {
     'A.J. Brown': 'Browns',
     'Bijan Robinson': 'Brian Robinson',
     'Browns': 'A.J. Brown',
+    'Chase Brown': 'A.J. Brown',
+    'A.J. Brown': 'Chase Brown',
+    'Amon-Ra St. Brown': 'A.J. Brown',
+    'A.J. Brown': 'Amon-Ra St. Brown',
+    'Noah Brown': 'A.J. Brown',
+    'A.J. Brown': 'Noah Brown',
+    'Dyami Brown': 'A.J. Brown',
+    'A.J. Brown': 'Dyami Brown',
+
 }
