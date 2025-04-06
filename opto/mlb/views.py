@@ -289,6 +289,10 @@ def add_slate(request):
         # Save players and positions
         csv = DictReader(iterdecode(slate_file, 'utf-8'))
         for row in csv:
+            game_info = row['Game Info']
+            if game_info == '-' or '@' not in game_info:
+                # Pass players with no games
+                continue
             players_positions = row['Roster Position'].split('/')
             default_position = row['Position']
             position_flags = {'P': False, 'C': False, '1B': False, '2B': False,
