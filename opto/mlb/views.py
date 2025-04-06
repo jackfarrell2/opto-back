@@ -241,7 +241,7 @@ def add_slate(request):
         for row in csv:
             # Populate game times, teams, and games
             game_info = row['Game Info']
-            if game_info == '-':
+            if game_info == '-' or '@' not in game_info:
                 # Pass players with no games
                 continue
             if game_info not in games:
