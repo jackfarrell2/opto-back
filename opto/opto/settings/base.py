@@ -16,7 +16,6 @@ import sys
 PASS_BASE_DIR = Path(__file__).resolve().parent.parent
 PASS_PARENT_DIR = PASS_BASE_DIR.parent.parent
 sys.path.append(str(PASS_PARENT_DIR))
-import email_info  # noqa
 
 BASE_DIR = os.path.dirname(Path(__file__).resolve().parent.parent)
 
@@ -56,10 +55,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-DEFAULT_FROM_EMAIL = os.environ.get(
-    'OPTO_NO_REPLY_EMAIL', 'no-reply@dfsopto.com')
-EMAIL_API_KEY = os.environ.get('SENDGRID_OPTO_API_KEY', '')
-
 ROOT_URLCONF = 'opto.urls'
 
 AUTH_USER_MODEL = 'users.CustomUser'
@@ -67,6 +62,10 @@ AUTH_USER_MODEL = 'users.CustomUser'
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+EMAIL_API_KEY = os.environ.get('SENDGRID_OPTO_API_KEY', '')
+DEFAULT_OUTBOUND_EMAIL = os.environ.get(
+    'OPTO_NO_REPLY_EMAIL', 'no-reply@dfsopto.com')
 
 TEMPLATES = [
     {

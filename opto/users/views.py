@@ -51,17 +51,20 @@ def resend_code(request):
         subject = 'Password reset request'
         body = f'Hi {user.first_name},\n\nWe received a request to reset your password. Use the confirmation code below to reset your password.\n\nConfirmation code: {new_confirmation_code}\n\nIf you did not request a password reset, please ignore this email or contact us at support@dfsopto.com.\n\nBest,\nDFS Opto Team'
         message = Mail(
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=settings.DEFAULT_OUTBOUND_EMAIL,
             to_emails=email,
             subject=subject,
             html_content=f'<p>{body.replace(chr(10), "<br>")}</p>'
         )
         try:
             sg = SendGridAPIClient(settings.EMAIL_API_KEY)
-            sg.send(message)
+            response = sg.send(message)
+            if response.status_code == 202:
+                return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'detail': 'Error sending email.'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'detail': 'Error sending email.'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
     except:
         return Response({'detail': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -80,17 +83,20 @@ def resend_confirmation(request):
         subject = 'Welcome to DFS Opto! Confirm your email!'
         body = f'Hi {user.first_name},\n\nThank you for signing up with DFS Opto! You\'re just one step away from completing your registration and accessing all the features available to you.\n\nTo activate your account, please click the link below:\n\nhttps://dfsopto.com/activate/{new_confirmation_code}\n\nThis link will confirm your email address and activate your account. If you did not sign up for DFS Opto, please ignore this email or contact us at support@dfsopto.com if you feel this is an error.\n\nBest regards,\nDFS Opto Team'
         message = Mail(
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=settings.DEFAULT_OUTBOUND_EMAIL,
             to_emails=email,
             subject=subject,
             html_content=f'<p>{body.replace(chr(10), "<br>")}</p>'
         )
         try:
             sg = SendGridAPIClient(settings.EMAIL_API_KEY)
-            sg.send(message)
+            response = sg.send(message)
+            if response.status_code == 202:
+                return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'detail': 'Error sending email.'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'detail': 'Error sending email.'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': 'Confirmation email sent'}, status=status.HTTP_200_OK)
 
     except User.DoesNotExist:
         return Response({'detail': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
@@ -132,17 +138,22 @@ def reset_password_request(request):
         subject = 'Password reset request'
         body = f'Hi {user.first_name},\n\nWe received a request to reset your password. Use the confirmation code below to reset your password.\n\nConfirmation code: {new_password_code}\n\nIf you did not request a password reset, please ignore this email or contact us at support@dfsopto.com.\n\nBest,\nDFS Opto Team'
         message = Mail(
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=settings.DEFAULT_OUTBOUND_EMAIL,
             to_emails=email,
             subject=subject,
             html_content=f'<p>{body.replace(chr(10), "<br>")}</p>'
         )
         try:
             sg = SendGridAPIClient(settings.EMAIL_API_KEY)
-            sg.send(message)
+            response = sg.send(message)
+            if response.status_code == 202:
+                return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'detail': f'Error sending email.',
+                }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'detail': 'Error sending email.'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
 
     except User.DoesNotExist:
         return Response({'detail': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
@@ -202,14 +213,16 @@ def signup(request):
 
         # Send email
         message = Mail(
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=settings.DEFAULT_OUTBOUND_EMAIL,
             to_emails=email,
             subject=subject,
             html_content=f'<p>{body.replace(chr(10), "<br>")}</p>'
         )
         try:
             sg = SendGridAPIClient(settings.EMAIL_API_KEY)
-            sg.send(message)
+            response = sg.send(message)
+            if response.status_code != 202:
+                return Response({'detail': 'Error sending email.'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
