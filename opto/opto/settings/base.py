@@ -56,12 +56,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = email_info.NO_REPLY_DFS_OPTO_EMAIL
-EMAIL_HOST_PASSWORD = email_info.NO_REPLY_DFS_OPTO_PASS
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'OPTO_NO_REPLY_EMAIL', 'no-reply@dfsopto.com')
+EMAIL_API_KEY = os.environ.get('SENDGRID_OPTO_API_KEY', '')
 
 ROOT_URLCONF = 'opto.urls'
 
