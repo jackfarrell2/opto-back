@@ -1,0 +1,93 @@
+name: Fetch DK Slates
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # 9 AM UTC = 5 AM ET
+  workflow_dispatch:      # allow manual trigger from GitHub UI
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch DK slates and push to server
+        env:
+          SERVER_URL: ${{ secrets.SERVER_URL }}
+          DK_INGEST_SECRET: ${{ secrets.DK_INGEST_SECRET }}
+        run: |
+          python3 - <<'PYEOF'
+          import os
+          import sys
+          import requests
+
+          SERVER_URL = os.environ['SERVER_URL'].rstrip('/')
+          SECRET = os.environ['DK_INGEST_SECRET']
+
+          SPORTS = ['NFL', 'NBA', 'MLB']
+          DK_LOBBY_URL = 'https://www.draftkings.com/lobby/getcontests'
+          DK_CSV_URL = 'https://www.draftkings.com/lineup/getavailableplayerscsv'
+          HEADERS = {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+
+          errors = []
+
+          for sport in SPORTS:
+              print(f'\n--- {sport} ---')
+              try:
+                  resp = requests.get(DK_LOBBY_URL, params={'sport': sport}, headers=HEADERS, timeout=30)
+                  resp.raise_for_status()
+                  data = resp.json()
+
+                  classic_type_ids = {
+                      gt['GameTypeId']
+                      for gt in data.get('GameTypes', [])
+                      if gt.get('Name', '').lower() == 'classic'
+                  }
+
+                  if not classic_type_ids:
+                      print('  No Classic contests found')
+                      continue
+
+                  seen = set()
+                  classic_ids = []
+                  for dg in data.get('DraftGroups', []):
+                      if dg.get('GameTypeId') in classic_type_ids:
+                          dg_id = dg['DraftGroupId']
+                          if dg_id not in seen:
+                              seen.add(dg_id)
+                              classic_ids.append(dg_id)
+
+                  print(f'  Found {len(classic_ids)} Classic draft group(s): {classic_ids}')
+
+                  for dg_id in classic_ids:
+                      try:
+                          csv_resp = requests.get(DK_CSV_URL, params={'draftGroupId': dg_id}, headers=HEADERS, timeout=30)
+                          csv_resp.raise_for_status()
+
+                          ingest_resp = requests.post(
+                              f'{SERVER_URL}/api/ingest-dk-slate/',
+                              json={'sport': sport, 'csv': csv_resp.text},
+                              headers={'X-Ingest-Key': SECRET},
+                              timeout=30,
+                          )
+                          ingest_resp.raise_for_status()
+                          result = ingest_resp.json()
+
+                          if result.get('created'):
+                              print(f'  Draft group {dg_id}: created slate #{result["slate_id"]}')
+                          elif result.get('skipped'):
+                              print(f'  Draft group {dg_id}: skipped — {result["reason"]}')
+                      except Exception as e:
+                          msg = f'  Draft group {dg_id}: ERROR — {e}'
+                          print(msg)
+                          errors.append(msg)
+
+              except Exception as e:
+                  msg = f'  {sport}: ERROR — {e}'
+                  print(msg)
+                  errors.append(msg)
+
+          if errors:
+              print(f'\n{len(errors)} error(s) occurred')
+              sys.exit(1)
+          PYEOF
