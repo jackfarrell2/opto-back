@@ -15,6 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -22,4 +23,5 @@ urlpatterns = [
     path('nba/', include('nba.urls')),
     path('mlb/', include('mlb.urls')),
     path('nfl/', include('nfl.urls')),
+    path('api/ingest-dk-slate/', views.ingest_dk_slate, name='ingest-dk-slate'),
 ]
