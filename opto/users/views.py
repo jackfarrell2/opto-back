@@ -34,7 +34,7 @@ def login(request):
         serializer = UserSerializer(instance=user)
         serializer_data = serializer.data
         serializer_data['isStaff'] = user.is_staff
-        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}})
+        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff'], 'isJack': user.email == 'jackfarrell860@gmail.com'}})
     else:
         return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -231,7 +231,7 @@ def signup(request):
         serializer = UserSerializer(instance=user)
         serializer_data = serializer.data
         serializer_data['isStaff'] = user.is_staff
-        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}}, status=status.HTTP_201_CREATED)
+        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff'], 'isJack': user.email == 'jackfarrell860@gmail.com'}}, status=status.HTTP_201_CREATED)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -251,7 +251,7 @@ def confirm_email(request, token):
     serializer = UserSerializer(instance=user)
     serializer_data = serializer.data
     serializer_data['isStaff'] = user.is_staff
-    return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}}, status=status.HTTP_200_OK)
+    return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff'], 'isJack': user.email == 'jackfarrell860@gmail.com'}}, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -269,7 +269,7 @@ def confirm_password_reset(request, token):
         serializer = UserSerializer(instance=user)
         serializer_data = serializer.data
         serializer_data['isStaff'] = user.is_staff
-        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff']}}, status=status.HTTP_200_OK)
+        return Response({'token': token.key, 'user': {'user': True, 'isStaff': serializer_data['isStaff'], 'isJack': user.email == 'jackfarrell860@gmail.com'}}, status=status.HTTP_200_OK)
     except:
         return Response({'detail': 'Invalid code, please try again'}, status=status.HTTP_400_BAD_REQUEST)
 
