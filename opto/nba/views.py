@@ -1,7 +1,9 @@
 import json
+import re
+from collections import defaultdict
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Slate, Team, Player, Game, UserOptoSettings, UserPlayer, Optimization
+from .models import Slate, Team, Player, Game, UserOptoSettings, UserPlayer, Optimization, ContestResults
 from rest_framework import status
 from opto.utils import format_slate
 from csv import DictReader
@@ -24,19 +26,24 @@ except ImportError:
 def get_slates(request):
     try:
         current_datetime_utc = datetime.now(timezone.utc)
-        slate_cutoff = current_datetime_utc.replace(
-            hour=6, minute=0, second=0, microsecond=0)
-        if current_datetime_utc.hour < 7:
-            slate_cutoff -= timedelta(days=1)
-        future_slates = Slate.objects.filter(
-            sport='NBA', date__gte=slate_cutoff).order_by('date')
-
-        if future_slates.exists():
-            slates = future_slates
+        days_back = request.query_params.get('days_back')
+        if days_back:
+            cutoff = current_datetime_utc - timedelta(days=int(days_back))
+            slates = Slate.objects.filter(sport='NBA', date__gte=cutoff).order_by('-date')
         else:
-            nearest_upcoming_slate = Slate.objects.filter(
-                sport='NBA').order_by('-date').first()
-            slates = [nearest_upcoming_slate] if nearest_upcoming_slate else []
+            slate_cutoff = current_datetime_utc.replace(
+                hour=6, minute=0, second=0, microsecond=0)
+            if current_datetime_utc.hour < 7:
+                slate_cutoff -= timedelta(days=1)
+            future_slates = Slate.objects.filter(
+                sport='NBA', date__gte=slate_cutoff).order_by('date')
+
+            if future_slates.exists():
+                slates = future_slates
+            else:
+                nearest_upcoming_slate = Slate.objects.filter(
+                    sport='NBA').order_by('-date').first()
+                slates = [nearest_upcoming_slate] if nearest_upcoming_slate else []
 
         formatted_slates = []
         for slate in slates:
@@ -499,3 +506,101 @@ def authenticated_optimize(request):
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def upload_contest_results(request):
+    try:
+        slate_id = request.data.get('slate')
+        slate_file = request.FILES.get('file')
+        if not slate_id or not slate_file:
+            return Response({"error": "Missing slate or file"}, status=status.HTTP_400_BAD_REQUEST)
+
+        slate = Slate.objects.get(id=int(slate_id))
+
+        slate_file.seek(0)
+        csv_text = slate_file.read().decode('utf-8-sig')
+        reader = DictReader(csv_text.splitlines())
+
+        fieldnames = [f.strip() for f in (reader.fieldnames or [])]
+        fieldnames_lower = {f.lower(): f for f in fieldnames}
+
+        def col(row, *candidates):
+            for c in candidates:
+                key = fieldnames_lower.get(c.lower())
+                if key is not None:
+                    v = row.get(key)
+                    return (v or '').strip()
+            return ''
+
+        ownership_data = []
+        lineup_entries = []
+
+        for row in reader:
+            lineup_str = col(row, 'Lineup')
+            rank = col(row, 'Rank')
+            if rank and lineup_str:
+                try:
+                    points = float(col(row, 'Points', 'Score', 'Pts'))
+                except (ValueError, AttributeError):
+                    points = 0.0
+                lineup_entries.append({
+                    'lineup_str': lineup_str,
+                    'rank': rank,
+                    'points': points,
+                    'entry_name': col(row, 'EntryName', 'Entry Name', 'Username'),
+                })
+
+            player_name = col(row, 'Player', 'Name')
+            pct_drafted_raw = col(row, '%Drafted', '%Owned', 'Ownership', 'Owned%')
+            fpts_raw = col(row, 'FPTS', 'Fantasy Points', 'Pts', 'Points')
+            position = col(row, 'Roster Position', 'Position', 'Pos')
+            if player_name:
+                try:
+                    pct_drafted = float(pct_drafted_raw.rstrip('%').strip())
+                except (ValueError, AttributeError):
+                    pct_drafted = 0.0
+                try:
+                    fpts = float(fpts_raw)
+                except (ValueError, AttributeError):
+                    fpts = 0.0
+                ownership_data.append({
+                    'name': player_name,
+                    'position': position,
+                    'pct_drafted': pct_drafted,
+                    'fpts': fpts,
+                })
+
+        total_entries = len(lineup_entries)
+
+        # Two-letter positions must come before single-letter to avoid partial matches
+        lineup_pattern = re.compile(
+            r'(PG|SG|SF|PF|UTIL|C|G|F)\s+(.+?)(?=\s+(?:PG|SG|SF|PF|UTIL|C|G|F)\s|$)'
+        )
+
+        lineup_details = []
+        for entry in lineup_entries:
+            matches = lineup_pattern.findall(entry['lineup_str'])
+            players = [{'name': name.strip(), 'position': pos} for pos, name in matches]
+            lineup_details.append({
+                'players': players,
+                'entry_name': entry['entry_name'],
+                'rank': entry['rank'],
+                'points': entry['points'],
+            })
+
+        ContestResults.objects.update_or_create(
+            slate=slate,
+            defaults={
+                'total_entries': total_entries,
+                'player_ownership': ownership_data,
+            }
+        )
+
+        return Response({
+            'total_entries': total_entries,
+            'player_ownership': ownership_data,
+            'lineup_details': lineup_details,
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -110,3 +110,13 @@ class Optimization(models.Model):
 
     def __str__(self):
         return f"Optimization - {self.id}"
+
+
+class ContestResults(models.Model):
+    slate = models.OneToOneField(Slate, on_delete=models.CASCADE, related_name='contest_results')
+    total_entries = models.IntegerField()
+    player_ownership = models.JSONField()  # [{name, position, pct_drafted, fpts}]
+    uploaded_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Contest Results - {self.slate}"

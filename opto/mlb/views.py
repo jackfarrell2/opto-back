@@ -1,7 +1,9 @@
 import json
+import re
+from collections import defaultdict
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Slate, Team, Player, Game, UserOptoSettings, UserPlayer, Optimization
+from .models import Slate, Team, Player, Game, UserOptoSettings, UserPlayer, Optimization, ContestResults
 from rest_framework import status
 from opto.utils import format_slate
 from csv import DictReader
@@ -24,19 +26,25 @@ except ImportError:
 def get_slates(request):
     try:
         current_datetime_utc = datetime.now(timezone.utc)
-        slate_cutoff = current_datetime_utc.replace(
-            hour=6, minute=0, second=0, microsecond=0)
-        if current_datetime_utc.hour < 7:
-            slate_cutoff -= timedelta(days=1)
-        future_slates = Slate.objects.filter(
-            sport='MLB', date__gte=slate_cutoff).order_by('date')
-
-        if future_slates.exists():
-            slates = future_slates
+        days_back = request.query_params.get('days_back')
+        if days_back:
+            cutoff = current_datetime_utc - timedelta(days=int(days_back))
+            slates = Slate.objects.filter(
+                sport='MLB', date__gte=cutoff).order_by('-date')
         else:
-            nearest_upcoming_slate = Slate.objects.filter(
-                sport='MLB').order_by('-date').first()
-            slates = [nearest_upcoming_slate] if nearest_upcoming_slate else []
+            slate_cutoff = current_datetime_utc.replace(
+                hour=6, minute=0, second=0, microsecond=0)
+            if current_datetime_utc.hour < 7:
+                slate_cutoff -= timedelta(days=1)
+            future_slates = Slate.objects.filter(
+                sport='MLB', date__gte=slate_cutoff).order_by('date')
+
+            if future_slates.exists():
+                slates = future_slates
+            else:
+                nearest_upcoming_slate = Slate.objects.filter(
+                    sport='MLB').order_by('-date').first()
+                slates = [nearest_upcoming_slate] if nearest_upcoming_slate else []
 
         formatted_slates = []
         for slate in slates:
@@ -498,3 +506,153 @@ def authenticated_optimize(request):
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
         return Response({"error": error_message}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+def upload_contest_results(request):
+    try:
+        slate_id = request.data.get('slate')
+        slate_file = request.FILES.get('file')
+        if not slate_id or not slate_file:
+            return Response({"error": "Missing slate or file"}, status=status.HTTP_400_BAD_REQUEST)
+
+        slate = Slate.objects.get(id=int(slate_id))
+
+        # Build player name -> team abbrev lookup (case-insensitive)
+        players_qs = Player.objects.filter(slate=slate).select_related('team')
+        player_team_map = {p.name.lower(): p.team.abbrev for p in players_qs}
+
+        slate_file.seek(0)
+        csv_text = slate_file.read().decode('utf-8-sig')
+        reader = DictReader(csv_text.splitlines())
+
+        # Build case-insensitive column lookup from actual fieldnames
+        fieldnames = [f.strip() for f in (reader.fieldnames or [])]
+        fieldnames_lower = {f.lower(): f for f in fieldnames}
+
+        def col(row, *candidates):
+            for c in candidates:
+                key = fieldnames_lower.get(c.lower())
+                if key is not None:
+                    v = row.get(key)
+                    return (v or '').strip()
+            return ''
+
+        ownership_data = []
+        lineup_entries = []
+
+        for row in reader:
+            lineup_str = col(row, 'Lineup')
+            rank = col(row, 'Rank')
+            if rank and lineup_str:
+                try:
+                    points = float(col(row, 'Points', 'Score', 'Pts'))
+                except (ValueError, AttributeError):
+                    points = 0.0
+                lineup_entries.append({
+                    'lineup_str': lineup_str,
+                    'rank': rank,
+                    'points': points,
+                    'entry_name': col(row, 'EntryName', 'Entry Name', 'Username'),
+                })
+
+            player_name = col(row, 'Player', 'Name')
+            pct_drafted_raw = col(row, '%Drafted', '%Owned', 'Ownership', 'Owned%')
+            fpts_raw = col(row, 'FPTS', 'Fantasy Points', 'Pts', 'Points')
+            position = col(row, 'Roster Position', 'Position', 'Pos')
+            if player_name:
+                try:
+                    pct_drafted = float(pct_drafted_raw.rstrip('%').strip())
+                except (ValueError, AttributeError):
+                    pct_drafted = 0.0
+                try:
+                    fpts = float(fpts_raw)
+                except (ValueError, AttributeError):
+                    fpts = 0.0
+                ownership_data.append({
+                    'name': player_name,
+                    'position': position,
+                    'pct_drafted': pct_drafted,
+                    'fpts': fpts,
+                })
+
+        total_entries = len(lineup_entries)
+
+        # Parse lineup strings and compute stacks
+        lineup_pattern = re.compile(
+            r'(1B|2B|3B|C|OF|P|SS)\s+(.+?)(?=\s+(?:1B|2B|3B|C|OF|P|SS)\s|$)'
+        )
+
+        team_stack4 = defaultdict(int)
+        team_stack5 = defaultdict(int)
+        lineup_details = []
+
+        for entry in lineup_entries:
+            lineup_str = entry['lineup_str']
+            matches = lineup_pattern.findall(lineup_str)
+            players = []
+            team_counts = defaultdict(int)
+            for pos, name in matches:
+                name = name.strip()
+                team = player_team_map.get(name.lower())
+                players.append({'name': name, 'position': pos, 'team': team})
+                if team and pos != 'P':
+                    team_counts[team] += 1
+            for team, count in team_counts.items():
+                if count >= 4:
+                    team_stack4[team] += 1
+                if count >= 5:
+                    team_stack5[team] += 1
+            lineup_details.append({
+                'players': players,
+                'stacked_teams': {t: c for t, c in team_counts.items() if c >= 4},
+                'entry_name': entry['entry_name'],
+                'rank': entry['rank'],
+                'points': entry['points'],
+            })
+
+        all_teams = set(team_stack4.keys()) | set(team_stack5.keys())
+        stacks = []
+        for team in all_teams:
+            stacks.append({
+                'team': team,
+                'stack4_count': team_stack4[team],
+                'stack4_pct': round(team_stack4[team] / total_entries * 100, 1) if total_entries else 0,
+                'stack5_count': team_stack5[team],
+                'stack5_pct': round(team_stack5[team] / total_entries * 100, 1) if total_entries else 0,
+            })
+        stacks.sort(key=lambda x: x['stack4_count'], reverse=True)
+
+        ContestResults.objects.update_or_create(
+            slate=slate,
+            defaults={
+                'total_entries': total_entries,
+                'player_ownership': ownership_data,
+                'stacks': stacks,
+            }
+        )
+
+        return Response({
+            'total_entries': total_entries,
+            'player_ownership': ownership_data,
+            'stacks': stacks,
+            'lineup_details': lineup_details,
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_contest_results(request, slate_id):
+    try:
+        results = ContestResults.objects.get(slate_id=int(slate_id))
+        return Response({
+            'total_entries': results.total_entries,
+            'player_ownership': results.player_ownership,
+            'stacks': results.stacks,
+        }, status=status.HTTP_200_OK)
+    except ContestResults.DoesNotExist:
+        return Response(None, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

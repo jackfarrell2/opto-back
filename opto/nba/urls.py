@@ -19,4 +19,6 @@ urlpatterns = [
          name='remove-projections'),
     path('api/remove-optimizations/', views.remove_optimizations,
          name='remove-optimizations'),
+    path('api/upload-contest-results/', views.upload_contest_results,
+         name='upload-contest-results'),
 ]
