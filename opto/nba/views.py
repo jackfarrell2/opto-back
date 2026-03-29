@@ -518,6 +518,9 @@ def upload_contest_results(request):
 
         slate = Slate.objects.get(id=int(slate_id))
 
+        players_qs = Player.objects.filter(slate=slate)
+        player_salary_map = {p.name.lower(): p.salary for p in players_qs}
+
         slate_file.seek(0)
         csv_text = slate_file.read().decode('utf-8-sig')
         reader = DictReader(csv_text.splitlines())
@@ -581,9 +584,11 @@ def upload_contest_results(request):
         lineup_details = []
         for entry in lineup_entries:
             matches = lineup_pattern.findall(entry['lineup_str'])
-            players = [{'name': name.strip(), 'position': pos} for pos, name in matches]
+            players = [{'name': name.strip(), 'position': pos, 'salary': player_salary_map.get(name.strip().lower())} for pos, name in matches]
+            total_salary = sum(p['salary'] for p in players if p['salary'])
             lineup_details.append({
                 'players': players,
+                'total_salary': total_salary,
                 'entry_name': entry['entry_name'],
                 'rank': entry['rank'],
                 'points': entry['points'],

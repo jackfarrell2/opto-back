@@ -522,6 +522,7 @@ def upload_contest_results(request):
         # Build player name -> team abbrev lookup (case-insensitive)
         players_qs = Player.objects.filter(slate=slate).select_related('team')
         player_team_map = {p.name.lower(): p.team.abbrev for p in players_qs}
+        player_salary_map = {p.name.lower(): p.salary for p in players_qs}
 
         slate_file.seek(0)
         csv_text = slate_file.read().decode('utf-8-sig')
@@ -596,7 +597,8 @@ def upload_contest_results(request):
             for pos, name in matches:
                 name = name.strip()
                 team = player_team_map.get(name.lower())
-                players.append({'name': name, 'position': pos, 'team': team})
+                salary = player_salary_map.get(name.lower())
+                players.append({'name': name, 'position': pos, 'team': team, 'salary': salary})
                 if team and pos != 'P':
                     team_counts[team] += 1
             for team, count in team_counts.items():
@@ -604,8 +606,10 @@ def upload_contest_results(request):
                     team_stack4[team] += 1
                 if count >= 5:
                     team_stack5[team] += 1
+            total_salary = sum(p['salary'] for p in players if p['salary'])
             lineup_details.append({
                 'players': players,
+                'total_salary': total_salary,
                 'stacked_teams': {t: c for t, c in team_counts.items() if c >= 4},
                 'entry_name': entry['entry_name'],
                 'rank': entry['rank'],
