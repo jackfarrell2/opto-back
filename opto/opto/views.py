@@ -6,7 +6,7 @@ from rest_framework import status
 
 from nfl.management.commands.fetch_dk_slates import Command as FetchCommand
 
-INGEST_SECRET = os.environ.get('DK_INGEST_SECRET', '')
+INGEST_SECRET = os.environ.get('DK_INGEST_SECRET', '') # INGEST
 VALID_SPORTS = {'NFL', 'NBA', 'MLB'} # only MLB and NFL stack
 
 
