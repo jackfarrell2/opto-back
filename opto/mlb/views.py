@@ -528,7 +528,6 @@ def upload_contest_results(request):
         csv_text = slate_file.read().decode('utf-8-sig')
         reader = DictReader(csv_text.splitlines())
 
-        # Build case-insensitive column lookup from actual fieldnames
         fieldnames = [f.strip() for f in (reader.fieldnames or [])]
         fieldnames_lower = {f.lower(): f for f in fieldnames}
 
